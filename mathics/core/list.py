@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Module containing ListExpression
+Module containing ListExpression, LazyListExpression, and NumpyArrayListExpression
 """
 
+import numpy as np
 import reprlib
 from typing import Any, Optional, Tuple
 
+from mathics.core.atoms import Integer, Real, Complex
 from mathics.core.element import ElementsProperties
 from mathics.core.evaluation import Evaluation
 from mathics.core.expression import Expression
@@ -180,3 +182,84 @@ class ListExpression(Expression):
         expr.original = self
         expr._sequences = self._sequences
         return expr
+
+
+#
+# Lazily evaluated list expression
+#
+
+class LazyListExpression(ListExpression):
+
+    """
+    A ListExpression with a supplied value that represents a list in
+    some way, but no supplied elements. The elements will be
+    instantiated on demand from the value. This allows the value to be
+    stored and used efficiently but at the same to present a normal
+    ListExpression view if required.
+    """
+
+    def __init__(self, value):
+
+        # we are a ListExpression with no .elements but a .value
+        super().__init__(None, literal_values = value)
+
+        # will be lazily computed if requested
+        # subclass must provide self._make_elements for this purpose
+        self.__elements = None
+
+    @property
+    def _elements(self):
+        if not self.__elements:
+            self._make_elements()
+        return self.__elements
+
+    @_elements.setter
+    def _elements(self, e):
+        self.__elements = e
+
+    @property
+    def is_instantiated(self):
+        return self.__elements is not None
+
+
+# python complex to mathics Complex
+# does this already exist somewhere?
+def py_to_m_complex(v):
+    return Complex(Real(v.real), Real(v.imag))
+
+# supported types are recorded here
+np_to_m_map = {t: Integer for t in ("int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64")}
+np_to_m_map |= {t: Real for t in ("float16", "float32", "float64")}
+np_to_m_map |= {t: py_to_m_complex for t in ("complex64", "complex128")}
+
+class NumpyArrayListExpression(LazyListExpression):
+
+    def __init__(self, value):
+
+        """
+        A lazily instantiated ListExpression backed by a numpy
+        array.  This allows data to be efficiently stored,
+        transmitted, and accessed efficiently as a numpy array by a
+        collaborating source and recipient, only instantiating the
+        inefficent elements representation if required by some
+        third party.
+        """
+
+        super().__init__(value)
+
+        # compute mathics type corresponding to np array type
+        # do this up front so we fail early on unsupported types
+        try:
+            self.np_to_m = np_to_m_map[str(value.dtype)]
+        except:
+            raise TypeError(f"Unsupported numpy type {value.dtype}")
+
+    # lazy computation of elements
+    def _make_elements(self):
+        def np_to_m(v):
+            if isinstance(v, np.ndarray):
+                return NumpyArrayListExpression(v)
+            else:
+                return self.np_to_m(v.item())
+        self._elements = [np_to_m(v) for v in self.value]
+    
