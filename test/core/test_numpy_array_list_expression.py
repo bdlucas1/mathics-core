@@ -12,23 +12,18 @@ def test():
             return a.item() == l.to_python()
 
     def test(a, s):
+        a = np.array(a)
         l = NumpyArrayListExpression(a)
         assert not l.is_instantiated, "should not be instantiated immediately after construction"
         assert str(l) == s
         assert eq(a, l), "numpy array and instantiated list should be equal"
         assert l.is_instantiated, "should be instantiated after any use that needs .elements"
 
-    # int, float, complex; empty, 1-d, 2-d
-    test(np.array([]),                          "{}")
-    test(np.array([1, 2, 3]),                   "{1,2,3}")
-    test(np.array([[1, 2], [3, 4]]),            "{{1,2},{3,4}}")
-    test(np.array([[17.5, 18.5], [2.2, 3.3]]),  "{{17.5,18.5},{2.2,3.3}}")
-    test(np.array([17j+3]),                     "{3.0 + 17.0*I}")
-
-    # unhandled type should raise an exception
-    try:
-        a = np.array([True, False, False])
-        l = NumpyArrayListExpression(a)
-        assert False, "expected failure for unhandled numpy type"
-    except TypeError:
-        pass
+    # int, float, complex, bool, mixed; empty, 1-d, 2-d
+    test([],                          "{}")
+    test([1, 2, 3],                   "{1,2,3}")
+    test([[1, 2], [3, 4]],            "{{1,2},{3,4}}")
+    test([[17.5, 18.5], [2.2, 3.3]],  "{{17.5,18.5},{2.2,3.3}}")
+    test([17j+3],                     "{3.0 + 17.0*I}")
+    test([True, False],               "{System`True,System`False}")
+    test([True, False, 17, 2.2],      "{1.0,0.0,17.0,2.2}")

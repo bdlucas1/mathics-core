@@ -8,6 +8,7 @@ import reprlib
 from typing import Any, Optional, Tuple
 
 from mathics.core.atoms import Integer, Real, Complex
+from mathics.core.convert.python import from_python
 from mathics.core.element import ElementsProperties
 from mathics.core.evaluation import Evaluation
 from mathics.core.expression import Expression
@@ -185,7 +186,7 @@ class ListExpression(Expression):
 
 
 #
-# Lazily evaluated list expression
+# Lazily evaluated list expressions
 #
 
 class LazyListExpression(ListExpression):
@@ -217,49 +218,28 @@ class LazyListExpression(ListExpression):
     def _elements(self, e):
         self.__elements = e
 
+    # this is primarily for testing
     @property
     def is_instantiated(self):
         return self.__elements is not None
 
 
-# python complex to mathics Complex
-# does this already exist somewhere?
-def py_to_m_complex(v):
-    return Complex(Real(v.real), Real(v.imag))
-
-# supported types are recorded here
-np_to_m_map = {t: Integer for t in ("int8", "int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64")}
-np_to_m_map |= {t: Real for t in ("float16", "float32", "float64")}
-np_to_m_map |= {t: py_to_m_complex for t in ("complex64", "complex128")}
-
 class NumpyArrayListExpression(LazyListExpression):
 
-    def __init__(self, value):
+    """
+    A lazily instantiated ListExpression backed by a numpy array.
+    This allows data to be efficiently stored, transmitted, and
+    accessed efficiently as a numpy array by a collaborating source
+    and recipient, only instantiating the inefficent elements
+    representation if required by some third party.
+    """
 
-        """
-        A lazily instantiated ListExpression backed by a numpy
-        array.  This allows data to be efficiently stored,
-        transmitted, and accessed efficiently as a numpy array by a
-        collaborating source and recipient, only instantiating the
-        inefficent elements representation if required by some
-        third party.
-        """
-
-        super().__init__(value)
-
-        # compute mathics type corresponding to np array type
-        # do this up front so we fail early on unsupported types
-        try:
-            self.np_to_m = np_to_m_map[str(value.dtype)]
-        except:
-            raise TypeError(f"Unsupported numpy type {value.dtype}")
-
-    # lazy computation of elements
+    # lazy computation of elements from numpy array
     def _make_elements(self):
         def np_to_m(v):
             if isinstance(v, np.ndarray):
                 return NumpyArrayListExpression(v)
             else:
-                return self.np_to_m(v.item())
+                return from_python(v.item())
         self._elements = [np_to_m(v) for v in self.value]
     
