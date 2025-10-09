@@ -3,13 +3,14 @@
 Module containing ListExpression, LazyListExpression, and NumpyArrayListExpression
 """
 
+import abc
 import numpy as np
 import reprlib
 from typing import Any, Optional, Tuple
 
 from mathics.core.atoms import Integer, Real, Complex
 from mathics.core.convert.python import from_python
-from mathics.core.element import ElementsProperties
+from mathics.core.element import ElementsProperties, BaseElement
 from mathics.core.evaluation import Evaluation
 from mathics.core.expression import Expression
 from mathics.core.symbols import EvalMixin, Symbol, SymbolList
@@ -189,7 +190,7 @@ class ListExpression(Expression):
 # Lazily evaluated list expressions
 #
 
-class LazyListExpression(ListExpression):
+class LazyListExpression(ListExpression, abc.ABC):
 
     """
     A ListExpression with a supplied value that represents a list in
@@ -199,29 +200,41 @@ class LazyListExpression(ListExpression):
     ListExpression view if required.
     """
 
-    def __init__(self, value):
+    def __init__(self, value) -> None:
 
         # we are a ListExpression with no .elements but a .value
         super().__init__(None, literal_values = value)
 
         # will be lazily computed if requested
         # subclass must provide self._make_elements for this purpose
-        self.__elements = None
+        self.__elements: Tuple[BaseElement, ...] | None = None
+
+    @abc.abstractmethod
+    def _make_elements(self) -> Tuple[BaseElement, ...]:
+        pass
+
+    # TODO: pyrefly gives us side-eye here becase we're overriding a member attribute with a property (but mypy does not)
+    # the justification I turned up with a little googling was that properties can violate the substitution principle
+    # because they can change performance or semantics (e.g. by raising exceptions)
+    # personally I don't buy it because the same is true of any overriden method, and if that is a concern of the type
+    # system then exceptions and performance characteristics should be part of the type signatures of attributes and methods
+    # and the ability to slide in a property to replace an attribute is kind of a core benefit of properties
 
     @property
-    def _elements(self):
+    def _elements(self) -> Tuple[BaseElement, ...]:
         if not self.__elements:
-            self._make_elements()
+            self.__elements = self._make_elements()
         return self.__elements
 
     @_elements.setter
-    def _elements(self, e):
+    def _elements(self, e) -> None:
         self.__elements = e
 
     # this is primarily for testing
     @property
-    def is_instantiated(self):
+    def is_instantiated(self) -> bool:
         return self.__elements is not None
+
 
 
 class NumpyArrayListExpression(LazyListExpression):
@@ -234,12 +247,19 @@ class NumpyArrayListExpression(LazyListExpression):
     representation if required by some third party.
     """
 
+    def __init__(self, value: np.ndarray):
+        super().__init__(value)
+
     # lazy computation of elements from numpy array
-    def _make_elements(self):
-        def np_to_m(v):
+    def _make_elements(self) -> Tuple[BaseElement, ...]:
+        def np_to_m(v) -> BaseElement | NumpyArrayListExpression:
             if isinstance(v, np.ndarray):
                 return NumpyArrayListExpression(v)
             else:
                 return from_python(v.item())
-        self._elements = [np_to_m(v) for v in self.value]
+        # TODO: typecheckers complain here because they don't know that self.value is not None
+        # because it is declared as optional in ListExpression, even though we guarantee it is an np.ndarray
+        # to fix that we could either use a cast here, or make ListExpression a generic type
+        # with a type parameter that specifies the type of value
+        return tuple(np_to_m(v) for v in self.value)
     
