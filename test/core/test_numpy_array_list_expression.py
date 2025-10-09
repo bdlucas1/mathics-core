@@ -7,7 +7,7 @@ def test():
     # compare array a with (nested) list l
     def eq(a, l):
         if isinstance(a, np.ndarray):
-            return all(eq(aa, ll) for aa, ll in zip(a, l))
+            return all(eq(aa, ll) for aa, ll in zip(a, l.elements))
         else:
             return a.item() == l.to_python()
 
@@ -15,7 +15,7 @@ def test():
         a = np.array(a)
         l = NumpyArrayListExpression(a)
         assert not l.is_instantiated, "should not be instantiated immediately after construction"
-        assert eq(a, l.elements), "numpy array and instantiated list should be equal"
+        assert eq(a, l), "numpy array and instantiated list should be equal"
         assert l.is_instantiated, "should be instantiated after any use that needs .elements"
         assert str(l) == s
 
