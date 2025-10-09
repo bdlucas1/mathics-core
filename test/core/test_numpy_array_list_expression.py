@@ -15,9 +15,9 @@ def test():
         a = np.array(a)
         l = NumpyArrayListExpression(a)
         assert not l.is_instantiated, "should not be instantiated immediately after construction"
-        assert str(l) == s
-        assert eq(a, l), "numpy array and instantiated list should be equal"
+        assert eq(a, l.elements), "numpy array and instantiated list should be equal"
         assert l.is_instantiated, "should be instantiated after any use that needs .elements"
+        assert str(l) == s
 
     # int, float, complex, bool, mixed; empty, 1-d, 2-d
     test([],                          "{}")
