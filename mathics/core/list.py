@@ -6,7 +6,7 @@ Module containing ListExpression, LazyListExpression, and NumpyArrayListExpressi
 import abc
 import numpy as np
 import reprlib
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Sequence, cast
 
 from mathics.core.atoms import Integer, Real, Complex
 from mathics.core.convert.python import from_python
@@ -29,17 +29,21 @@ class ListExpression(Expression):
     Keyword Arguments:
 
     - ``elements_properties`` -- properties of the collection of elements
-    - ``literal_values`` -- if this is not ``None``, then it is a tuple of Python values and the expression is a literal.
+    - ``literal_values`` -- if this is not ``None``, then it is a Sequence of Python values and the expression is a literal.
     """
 
     _is_literal: bool
     _sympy: Optional[Any]
 
+    # immutable, iterable, indexable
+    # pyright seems to infer that it is not None from __init__, but mypy and pyrefly do not
+    value: Sequence
+
     def __init__(
         self,
         *elements,
         elements_properties: Optional[ElementsProperties] = None,
-        literal_values: Optional[tuple] = None,
+        literal_values: Optional[Sequence] = None,
     ):
         self.options = None
         self.pattern_sequence = False
@@ -57,8 +61,8 @@ class ListExpression(Expression):
 
         self._elements = elements
 
-        # When self.value is not None it a Python tuple (not Python
-        # list) sort that is the Python equivalent value for the Mathics3 list.
+        # When self.value is not None it a Python Sequence (not Python
+        # list) type that is the Python equivalent value for the Mathics3 list.
 
         # Check for literalness if it is not known
         if literal_values is not None:
@@ -200,10 +204,10 @@ class LazyListExpression(ListExpression, abc.ABC):
     ListExpression view if required.
     """
 
-    def __init__(self, value) -> None:
+    def __init__(self, value: Sequence) -> None:
 
         # we are a ListExpression with no .elements but a .value
-        super().__init__(None, literal_values = value)
+        super().__init__(literal_values = value)
 
         # will be lazily computed if requested
         # subclass must provide self._make_elements for this purpose
@@ -213,7 +217,8 @@ class LazyListExpression(ListExpression, abc.ABC):
     def _make_elements(self) -> Tuple[BaseElement, ...]:
         pass
 
-    # TODO: pyrefly gives us side-eye here becase we're overriding a member attribute with a property (but mypy does not)
+    # TODO: pyrefly gives us side-eye here becase we're overriding a member attribute with a property
+    # (but mypy and pyright do not complain...)
     # the justification I turned up with a little googling was that properties can violate the substitution principle
     # because they can change performance or semantics (e.g. by raising exceptions)
     # personally I don't buy it because the same is true of any overriden method, and if that is a concern of the type
@@ -248,7 +253,10 @@ class NumpyArrayListExpression(LazyListExpression):
     """
 
     def __init__(self, value: np.ndarray):
-        super().__init__(value)
+        # TODO: np.ndarray is not assignable to Sequence because nominal vs structural, but I think this is safe
+        # also since .value is declared Sequence typechecker will complain if user tries to modify the array
+        # even though arrays allow it; I guess this is a good thing
+        super().__init__(cast(Sequence,value))
 
     # lazy computation of elements from numpy array
     def _make_elements(self) -> Tuple[BaseElement, ...]:
@@ -257,9 +265,5 @@ class NumpyArrayListExpression(LazyListExpression):
                 return NumpyArrayListExpression(v)
             else:
                 return from_python(v.item())
-        # TODO: typecheckers complain here because they don't know that self.value is not None
-        # because it is declared as optional in ListExpression, even though we guarantee it is an np.ndarray
-        # to fix that we could either use a cast here, or make ListExpression a generic type
-        # with a type parameter that specifies the type of value
         return tuple(np_to_m(v) for v in self.value)
     

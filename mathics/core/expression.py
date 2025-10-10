@@ -288,7 +288,7 @@ class Expression(BaseElement, NumericOperators, EvalMixin):
         head: BaseElement,
         *elements: BaseElement,
         elements_properties: Optional[ElementsProperties] = None,
-        literal_values: Optional[tuple] = None,
+        literal_values: Optional[Sequence] = None,
     ):
         self.options = None
         self.pattern_sequence = False
