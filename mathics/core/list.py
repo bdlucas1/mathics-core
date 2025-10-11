@@ -4,13 +4,14 @@ Module containing ListExpression, LazyListExpression, and NumpyArrayListExpressi
 """
 
 import abc
-import numpy as np
 import reprlib
-from typing import Any, Optional, Tuple, Sequence, cast
+from typing import Any, Optional, Sequence, Tuple, cast
 
-from mathics.core.atoms import Integer, Real, Complex
+import numpy as np
+
+from mathics.core.atoms import Complex, Integer, Real
 from mathics.core.convert.python import from_python
-from mathics.core.element import ElementsProperties, BaseElement
+from mathics.core.element import BaseElement, ElementsProperties
 from mathics.core.evaluation import Evaluation
 from mathics.core.expression import Expression
 from mathics.core.symbols import EvalMixin, Symbol, SymbolList
@@ -194,6 +195,7 @@ class ListExpression(Expression):
 # Lazily evaluated list expressions
 #
 
+
 class LazyListExpression(ListExpression, abc.ABC):
 
     """
@@ -205,9 +207,8 @@ class LazyListExpression(ListExpression, abc.ABC):
     """
 
     def __init__(self, value: Sequence) -> None:
-
         # we are a ListExpression with no .elements but a .value
-        super().__init__(literal_values = value)
+        super().__init__(literal_values=value)
 
         # will be lazily computed if requested
         # subclass must provide self._make_elements for this purpose
@@ -241,7 +242,6 @@ class LazyListExpression(ListExpression, abc.ABC):
         return self.__elements is not None
 
 
-
 class NumpyArrayListExpression(LazyListExpression):
 
     """
@@ -256,7 +256,7 @@ class NumpyArrayListExpression(LazyListExpression):
         # TODO: np.ndarray is not assignable to Sequence because nominal vs structural, but I think this is safe
         # also since .value is declared Sequence typechecker will complain if user tries to modify the array
         # even though arrays allow it; I guess this is a good thing
-        super().__init__(cast(Sequence,value))
+        super().__init__(cast(Sequence, value))
 
     # lazy computation of elements from numpy array
     def _make_elements(self) -> Tuple[BaseElement, ...]:
@@ -265,5 +265,5 @@ class NumpyArrayListExpression(LazyListExpression):
                 return NumpyArrayListExpression(v)
             else:
                 return from_python(v.item())
+
         return tuple(np_to_m(v) for v in self.value)
-    
