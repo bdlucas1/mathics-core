@@ -123,7 +123,6 @@ def subranges(
 
 
 class Timer:
-
     """
     Times a block of code. May be used as a decorator or as a context manager:
 

@@ -18,6 +18,7 @@ from mathics.core.keycomparable import GENERAL_NUMERIC_EXPRESSION_SORT_KEY
 from mathics.core.symbols import EvalMixin, Symbol, SymbolList
 from mathics.core.util import Timer
 
+
 class ListExpression(Expression):
     """
     A Mathics3 List-Expression.
@@ -196,8 +197,8 @@ class ListExpression(Expression):
 # Lazily evaluated list expressions
 #
 
-class LazyListExpression(ListExpression, abc.ABC):
 
+class LazyListExpression(ListExpression, abc.ABC):
     """
     A ListExpression with a supplied value that represents a list in
     some way, but no supplied elements. The elements will be
@@ -209,7 +210,7 @@ class LazyListExpression(ListExpression, abc.ABC):
     def __init__(self, value: Sequence) -> None:
 
         # we are a ListExpression with no .elements but a .value
-        super().__init__(literal_values = value)
+        super().__init__(literal_values=value)
 
         # will be lazily computed if requested
         # subclass must provide self._make_elements for this purpose
@@ -239,7 +240,7 @@ class LazyListExpression(ListExpression, abc.ABC):
 
     # overriding this to avoid instantiating ._elements
     def _build_elements_properties(self):
-        self.elements_properties =  ElementsProperties(True, True, True)
+        self.elements_properties = ElementsProperties(True, True, True)
 
     # overriding this to avoid instantiating ._elements
     def _rebuild_cache(self) -> ExpressionCache:
@@ -252,9 +253,7 @@ class LazyListExpression(ListExpression, abc.ABC):
         return self.__elements is not None
 
 
-
 class NumpyArrayListExpression(LazyListExpression):
-
     """
     A lazily instantiated ListExpression backed by a numpy array.
     This allows data to be efficiently stored, transmitted, and
@@ -263,29 +262,37 @@ class NumpyArrayListExpression(LazyListExpression):
     representation if required by some third party.
     """
 
-    def __init__(self, value: np.ndarray, level = 0):
+    def __init__(self, value: np.ndarray, level=0):
         # TODO: np.ndarray is not assignable to Sequence because nominal vs structural, but I think this is safe
         # also since .value is declared Sequence typechecker will complain if user tries to modify the array
         # even though arrays allow it; I guess this is a good thing
-        super().__init__(cast(Sequence,value))
+        super().__init__(cast(Sequence, value))
         self.level = level
 
     # overriding this to avoid instantiating ._elements
-    def is_numeric(self, evaluation = None) -> bool:
+    def is_numeric(self, evaluation=None) -> bool:
         return True
 
     # overriding this to avoid instantiating ._elements
     # TODO: pyright says we're incorrectly overriding here, but can't see why
     def element_order(self) -> tuple:
-        return (GENERAL_NUMERIC_EXPRESSION_SORT_KEY, self.head, len(self.value), self.value, 1)
+        return (
+            GENERAL_NUMERIC_EXPRESSION_SORT_KEY,
+            self.head,
+            len(self.value),
+            self.value,
+            1,
+        )
 
     # lazy computation of elements from numpy array
     def _make_elements(self) -> Tuple[BaseElement, ...]:
-        #traceback.print_stack()
+        # traceback.print_stack()
         with Timer("INSTANTIATING" if self.level == 0 else None):
+
             def np_to_m(v) -> BaseElement | NumpyArrayListExpression:
                 if isinstance(v, np.ndarray):
                     return NumpyArrayListExpression(v, self.level + 1)
                 else:
                     return from_python(v.item())
+
             return tuple(np_to_m(v) for v in self.value)
