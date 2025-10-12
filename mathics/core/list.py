@@ -196,6 +196,10 @@ class ListExpression(Expression):
 #
 # Lazily evaluated list expressions
 #
+# TODO: not sure how useful it is to have separated this out:
+# several additonal overrides that require value to be numeric
+# are needed in NumpyArrayListExpression to avoid instantiating ._elements
+#
 
 
 class LazyListExpression(ListExpression, abc.ABC):
