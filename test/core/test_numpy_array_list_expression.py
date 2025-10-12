@@ -2,6 +2,15 @@ import numpy as np
 
 from mathics.core.list import NumpyArrayListExpression
 
+# TODO: NumpyArrayListExpression contains several overrides to avoid instantiating
+# ._elements unnecessarily. This makes performance potentially a little fragile.
+# When Plot and/or Manipulate that use NALE become available, add tests to ensure
+# that we can generate a plot and manipulate it without instantiating the NALEs
+# that it generates.
+#
+# And/or, maybe add direct performance tests that can detect performance regressions
+# in this area.
+
 
 def test():
     # compare array a with (nested) list l
