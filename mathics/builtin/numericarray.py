@@ -43,8 +43,12 @@ class NumericArray(Builtin):
         "data": "Numeric data expected at position 1 in NumericArray[`1`].",
     }
 
-    def eval(self, data, typespec, evaluation):
-        "NumericArray[data_, typespec_]"
+    # did not work as initially coded by Codex because we return a value with data replaced by an atom
+    # but that still matches this rule, so we get infinite loop
+    # however by being this specific (data_List) we seem to lose .value, I think, because we don't handle
+    # copying in this rule any more
+    def eval_list(self, data, typespec, evaluation):
+        "NumericArray[data_List, typespec_]"
 
         if numpy is None:
             raise ImportError("numpy is required for NumericArray")
@@ -65,12 +69,27 @@ class NumericArray(Builtin):
             literal_values=atom.value,
         )
 
-    def eval_normal(self, array_atom, evaluation):
-        "System`Normal[NumericArray[array_NumericArrayAtom]]"
+    # did not work as initially coded by Codex because
+    # 1) type matching on NumericArrayAtom doesn't seem to work
+    # 2) need the ___ or similar to match the typespec
+    def eval_normal(self, atom, evaluation):
+        "System`Normal[NumericArray[atom_, ___]]"
 
         from mathics.core.convert.python import from_python
 
-        return from_python(array_atom.value.tolist())
+        return from_python(atom.value.tolist())
+
+    # ISSUE: this works but array.value is None, I think because the expression has been re-constituted
+    # from its .elements by some rule and the .value has been lost, possibly because the preceding rule
+    # is evaluated only if first element is List so .value doesn't get copied
+    # IOW: .value seems to be fragile wrt evaluations?
+    #def eval_normal(self, array, evaluation):
+    #    "System`Normal[array_NumericArray]"
+    #
+    #    from mathics.core.convert.python import from_python
+    #
+    #    # can't use array.value here because it's been lost :(
+    #    return from_python(array.elements[0].value.tolist())
 
     def eval_to_string(self, array_atom, evaluation):
         "ToString[NumericArray[array_NumericArrayAtom]]"
