@@ -43,13 +43,13 @@ class NumericArray(Builtin):
         "data": "Numeric data expected at position 1 in NumericArray[`1`].",
     }
 
-    def eval(self, data, type_spec, evaluation):
-        "NumericArray[data_, type_]"
+    def eval(self, data, typespec, evaluation):
+        "NumericArray[data_, typespec_]"
 
         if numpy is None:
             raise ImportError("numpy is required for NumericArray")
 
-        dtype, valid = self._resolve_dtype(type_spec, evaluation)
+        dtype, valid = self._resolve_dtype(typespec, evaluation)
         if not valid:
             return SymbolFailed
 
@@ -79,26 +79,26 @@ class NumericArray(Builtin):
         return String(f"NumericArray[<{summary}>]")
 
     def _resolve_dtype(
-        self, type_spec, evaluation
+        self, typespec, evaluation
     ) -> Tuple[Optional[numpy.dtype], bool]:
-        if isinstance(type_spec, Symbol):
-            if type_spec is SymbolAutomatic:
+        if isinstance(typespec, Symbol):
+            if typespec is SymbolAutomatic:
                 return None, True
-            key = strip_context(type_spec.get_name())
-        elif isinstance(type_spec, String):
-            if type_spec.value == "Automatic":
+            key = strip_context(typespec.get_name())
+        elif isinstance(typespec, String):
+            if typespec.value == "Automatic":
                 return None, True
-            key = type_spec.value
+            key = typespec.value
         else:
             try:
-                key = type_spec.to_python(string_quotes=False)
+                key = typespec.to_python(string_quotes=False)
             except Exception:
                 key = None
             if key == "Automatic":
                 return None, True
 
         if not key:
-            evaluation.message("NumericArray", "type", type_spec)
+            evaluation.message("NumericArray", "type", typespec)
             return None, False
 
         dtype = NUMERIC_ARRAY_TYPE_MAP.get(key)
@@ -106,11 +106,11 @@ class NumericArray(Builtin):
             try:
                 dtype = numpy.dtype(key)
             except (TypeError, ValueError):
-                evaluation.message("NumericArray", "type", type_spec)
+                evaluation.message("NumericArray", "type", typespec)
                 return None, False
 
         if not _is_numeric_dtype(dtype):
-            evaluation.message("NumericArray", "type", type_spec)
+            evaluation.message("NumericArray", "type", typespec)
             return None, False
 
         return dtype, True
