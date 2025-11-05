@@ -10,6 +10,11 @@ import mpmath
 import sympy
 from sympy.core import numbers as sympy_numbers
 
+try:  # pragma: no cover - optional dependency handled at runtime
+    import numpy
+except ImportError:  # pragma: no cover - numpy is optional at import time
+    numpy = None
+
 from mathics.core.element import BoxElementMixin, ImmutableValueMixin
 from mathics.core.keycomparable import (
     BASIC_ATOM_NUMBER_SORT_KEY,
@@ -45,6 +50,49 @@ SymbolString = Symbol("String")
 SYSTEM_SYMBOLS_INPUT_OR_FULL_FORM = symbol_set(SymbolInputForm, SymbolFullForm)
 
 T = TypeVar("T")
+
+
+if numpy is not None:
+    NUMERIC_ARRAY_TYPE_MAP = {
+        "UnsignedInteger8": numpy.dtype("uint8"),
+        "UnsignedInteger16": numpy.dtype("uint16"),
+        "UnsignedInteger32": numpy.dtype("uint32"),
+        "UnsignedInteger64": numpy.dtype("uint64"),
+        "Integer8": numpy.dtype("int8"),
+        "Integer16": numpy.dtype("int16"),
+        "Integer32": numpy.dtype("int32"),
+        "Integer64": numpy.dtype("int64"),
+        "Real32": numpy.dtype("float32"),
+        "Real64": numpy.dtype("float64"),
+        "ComplexReal32": numpy.dtype("complex64"),
+        "ComplexReal64": numpy.dtype("complex128"),
+    }
+    NUMERIC_ARRAY_DTYPE_TO_NAME = {
+        dtype: name for name, dtype in NUMERIC_ARRAY_TYPE_MAP.items()
+    }
+else:  # pragma: no cover - executed only when numpy is absent
+    NUMERIC_ARRAY_TYPE_MAP = {}
+    NUMERIC_ARRAY_DTYPE_TO_NAME = {}
+
+
+def numeric_array_type_name(dtype) -> str:
+    if numpy is None:
+        raise ImportError("numpy is required for NumericArray support")
+    dtype_obj = numpy.dtype(dtype)
+    return NUMERIC_ARRAY_DTYPE_TO_NAME.get(dtype_obj, dtype_obj.name)
+
+
+def numeric_array_shape_string(array) -> str:
+    if numpy is None:
+        raise ImportError("numpy is required for NumericArray support")
+    shape = array.shape
+    if len(shape) == 0:
+        return "1"
+    return "×".join(str(dim) for dim in shape) or "0"
+
+
+def numeric_array_summary_string(array) -> str:
+    return f"{numeric_array_type_name(array.dtype)}, {numeric_array_shape_string(array)}"
 
 
 class Number(Atom, ImmutableValueMixin, NumericOperators, Generic[T]):
@@ -740,6 +788,82 @@ class ByteArrayAtom(Atom, ImmutableValueMixin):
 
     def __getnewargs__(self):
         return (self.value,)
+
+
+class NumericArrayAtom(Atom, ImmutableValueMixin):
+    class_head_name = "System`NumericArray"
+
+    def __new__(cls, value, dtype=None):
+        if numpy is None:
+            raise ImportError("numpy is required for NumericArrayAtom")
+        self = super().__new__(cls)
+        if not isinstance(value, numpy.ndarray):
+            value = numpy.asarray(value, dtype=dtype)
+        elif dtype is not None:
+            desired_dtype = numpy.dtype(dtype)
+            if value.dtype != desired_dtype:
+                value = value.astype(desired_dtype)
+        self.value = value
+        summary = (
+            numeric_array_type_name(self.value.dtype),
+            tuple(self.value.shape),
+            self.value.tobytes(),
+        )
+        self._summary = summary
+        self.hash = hash(("NumericArrayAtom", summary))
+        return self
+
+    def __hash__(self):
+        return self.hash
+
+    def __str__(self) -> str:
+        return f"NumericArray[{self.summary_string()}]"
+
+    def atom_to_boxes(self, f, evaluation):
+        return String(f"<{self.summary_string()}>")
+
+    def do_copy(self) -> "NumericArrayAtom":
+        return NumericArrayAtom(self.value.copy())
+
+    def default_format(self, evaluation, form) -> str:
+        return f"NumericArray[<{self.summary_string()}>]"
+
+    @property
+    def element_order(self) -> tuple:
+        return (
+            BASIC_ATOM_STRING_OR_BYTEARRAY_SORT_KEY,
+            self._summary[0],
+            self._summary[1],
+            self._summary[2],
+        )
+
+    @property
+    def pattern_precedence(self) -> tuple:
+        return super().pattern_precedence
+
+    def sameQ(self, rhs) -> bool:
+        if numpy is None:
+            return False
+        if isinstance(rhs, NumericArrayAtom):
+            return rhs.value.dtype == self.value.dtype and numpy.array_equal(
+                rhs.value, self.value
+            )
+        return False
+
+    def to_sympy(self, **kwargs):
+        return None
+
+    def to_python(self, *args, **kwargs):
+        return self.value
+
+    def user_hash(self, update):
+        update(self._summary[2])
+
+    def __getnewargs__(self):
+        return (self.value, self.value.dtype)
+
+    def summary_string(self) -> str:
+        return numeric_array_summary_string(self.value)
 
 
 class Complex(Number[Tuple[Number[T], Number[T], Optional[int]]]):

@@ -5,6 +5,11 @@ Conversions between Python and Mathics3
 
 from typing import Any
 
+try:  # pragma: no cover - numpy is optional
+    import numpy
+except ImportError:  # pragma: no cover - optional dependency missing
+    numpy = None
+
 from mathics.core.atoms import Complex, Integer, Rational, Real, String
 from mathics.core.number import get_type
 from mathics.core.symbols import (
@@ -113,5 +118,13 @@ def from_python(arg: Any) -> BaseElement:
         from mathics.builtin.binary.bytearray import ByteArrayAtom
 
         return Expression(SymbolByteArray, ByteArrayAtom(arg))
+    elif numpy is not None and isinstance(arg, numpy.ndarray):
+        from mathics.builtin.numericarray import NumericArrayAtom
+        from mathics.core.systemsymbols import SymbolNumericArray
+
+        atom = NumericArrayAtom(arg)
+        return Expression(SymbolNumericArray, atom, literal_values=atom.value)
+    elif numpy is not None and isinstance(arg, numpy.generic):
+        return from_python(arg.item())
     else:
         raise NotImplementedError
