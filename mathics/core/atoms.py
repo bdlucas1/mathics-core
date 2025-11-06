@@ -1104,7 +1104,7 @@ class NumericArray(Atom, ImmutableValueMixin):
 
     class_head_name = "System`NumericArray"
 
-    def __init__(cls, value, dtype=None):
+    def __init__(self, value, dtype=None):
         if numpy is None:
             raise ImportError("numpy is required for NumericArray")
 
@@ -1123,8 +1123,8 @@ class NumericArray(Atom, ImmutableValueMixin):
             raise ValueError(message)
 
         # summary and hash
-        self._summary = (self._type_name(), self.value.shape, self.value.tobytes())
-        shape_string = "×".join(str(dim) for dim in shape) or "0"
+        self._summary = (self._type_name, self.value.shape, self.value.tobytes())
+        shape_string = "×".join(str(dim) for dim in self.value.shape) or "0"
         self._summary_string = f"{self._type_name}, {shape_string}"
         self._hash = None
 
