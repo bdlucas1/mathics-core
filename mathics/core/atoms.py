@@ -1128,6 +1128,8 @@ class NumericArray(Atom, ImmutableValueMixin):
         self._summary_string = f"{self._type_name}, {shape_string}"
         self._hash = None
 
+    # TODO: this is potentially expensive - what if we left it unimplemented? is hashing a numpy array reasonable?
+    # TODO: or maybe make self._summary included only some of the bytes, since it's just a hash?
     def __hash__(self):
         if not self._hash:
             print("HASHING NUMERICARRAY")
