@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""NumericArray backed by NumPy arrays."""
+"""Rules for working with NumericArray atoms."""
 
 from typing import Optional, Tuple
 
@@ -20,6 +20,7 @@ from mathics.core.symbols import Symbol, strip_context
 from mathics.core.systemsymbols import SymbolAutomatic, SymbolFailed, SymbolNumericArray
 
 
+# name modeled on Complex_ to avoid collision with NumericArray atom
 class NumericArray_(Builtin):
 
     summary_text = "head for NumericArray"
@@ -40,7 +41,7 @@ class NumericArray_(Builtin):
             evaluation.message("NumericArray", "type", typespec)            
             return SymbolFailed
 
-        # compute dtype from key
+        # compute numpy dtype from key
         if key == "Automatic":
             dtype = None
         else:
