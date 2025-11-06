@@ -120,7 +120,5 @@ def from_python(arg: Any) -> BaseElement:
         return Expression(SymbolByteArray, ByteArrayAtom(arg))
     elif numpy is not None and isinstance(arg, numpy.ndarray):
         return NumericArray(arg)
-    elif numpy is not None and isinstance(arg, numpy.generic):
-        return from_python(arg.item())
     else:
         raise NotImplementedError
