@@ -17,6 +17,7 @@ from mathics.core.atoms import ByteArray, Integer, Integer1, is_integer_rational
 from mathics.core.attributes import A_HOLD_FIRST, A_LISTABLE, A_LOCKED, A_PROTECTED
 from mathics.core.builtin import BasePattern, Builtin, IterationFunction
 from mathics.core.convert.expression import to_expression
+from mathics.core.convert.python import from_python
 from mathics.core.convert.sympy import from_sympy
 from mathics.core.element import ElementsProperties
 from mathics.core.evaluation import Evaluation
@@ -198,7 +199,7 @@ class Normal(Builtin):
     def eval_general(self, expr: Expression, evaluation: Evaluation):
         "Normal[expr_]"
         if isinstance(expr, NumericArray):
-            return expr.to_normal()
+            return from_python(expr.to_python())
         if isinstance(expr, Atom):
             if isinstance(expr, ByteArray):
                 return ListExpression(*expr.items)
