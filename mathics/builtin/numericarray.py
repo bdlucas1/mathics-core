@@ -15,7 +15,7 @@ from mathics.core.symbols import Symbol, strip_context
 from mathics.core.systemsymbols import SymbolAutomatic, SymbolFailed, SymbolNumericArray
 
 
-# name modeled on Complex_ to avoid collision with NumericArray atom
+# class name modeled on Complex_ to avoid collision with NumericArray atom
 class NumericArray_(Builtin):
 
     summary_text = "construct NumericArray"
