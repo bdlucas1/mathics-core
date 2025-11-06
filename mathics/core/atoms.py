@@ -1138,7 +1138,7 @@ class NumericArray(Atom, ImmutableValueMixin):
     backed by NumPy arrays.
     """
 
-    class_head_name = "System`NumericArray"
+    class_head_name = "NumericArray"
 
     def __init__(self, value, dtype=None):
         if numpy is None:
@@ -1166,6 +1166,7 @@ class NumericArray(Atom, ImmutableValueMixin):
 
     def __hash__(self):
         if not self._hash:
+            print("HASHING NUMERICARRAY")
             self._hash = hash(("NumericArray", self._summary))
         return self._hash
 
@@ -1195,8 +1196,15 @@ class NumericArray(Atom, ImmutableValueMixin):
     def to_sympy(self, **kwargs):
         return None
 
+    # TODO: should to_python return the numpy array or the numpy array converted to nested lists?
     def to_python(self, *args, **kwargs):
         return self.value
+
+    # called from Normal builtin in mathics/builtin/list/constructing.py
+    # if to_python returns numpy list this could just be moved to the Normal builtin
+    def to_normal(self):
+        from mathics.core.convert.python import from_python
+        return from_python(self.value.tolist())
 
     # TODO: what is this? is it right?
     def user_hash(self, update):
