@@ -451,7 +451,7 @@ class If(SympyObject):
         if all(arg is not None for arg in args):
             if len(args) == 2:
                 cond, t = args
-                return sympy.PieceWise((t, cond))
+                return sympy.Piecewise((t, cond))
             elif len(args) == 3:
                 cond, t, f = args
                 return sympy.Piecewise((t, cond), (f, True))
