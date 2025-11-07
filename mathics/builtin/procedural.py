@@ -560,6 +560,7 @@ class Return(Builtin):
         raise ReturnInterrupt(expr)
 
 
+# TODO: to_sympy like If
 class Switch(Builtin):
     """
     <url>:WMA link:
@@ -666,6 +667,7 @@ class Throw(Builtin):
         raise WLThrowInterrupt(value, tag)
 
 
+# TODO: to_sympy like If
 class Which(Builtin):
     """
     <url>
