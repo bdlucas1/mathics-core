@@ -22,7 +22,7 @@ from mathics.core.attributes import (
     A_PROTECTED,
     A_READ_PROTECTED,
 )
-from mathics.core.builtin import Builtin, InfixOperator, IterationFunction
+from mathics.core.builtin import Builtin, InfixOperator, IterationFunction, SympyObject
 from mathics.core.evaluation import Evaluation
 from mathics.core.expression import Expression
 from mathics.core.interrupt import (
@@ -36,6 +36,8 @@ from mathics.core.symbols import Symbol, SymbolFalse, SymbolNull, SymbolTrue
 from mathics.core.systemsymbols import SymbolMatchQ, SymbolPause
 from mathics.eval.datetime import eval_pause, valid_time_from_expression
 from mathics.eval.patterns import match
+
+import sympy
 
 SymbolWhich = Symbol("Which")
 
@@ -365,7 +367,8 @@ class For(Builtin):
         return SymbolNull
 
 
-class If(Builtin):
+# note that this is not strictly speaking procedural
+class If(SympyObject):
     """
     <url>:WMA link:https://reference.wolfram.com/language/ref/If.html</url>
 
@@ -442,6 +445,21 @@ class If(Builtin):
             return f.evaluate(evaluation)
         else:
             return u.evaluate(evaluation)
+
+    def to_sympy(self, expr, **kwargs):
+        args = [e.to_sympy() for e in expr.elements]
+        if all(arg is not None for arg in args):
+            if len(args) == 2:
+                cond, t = args
+                return sympy.PieceWise((t, cond))
+            elif len(args) == 3:
+                cond, t, f = args
+                return sympy.Piecewise((t, cond), (f, True))
+            elif len(args) == 4:
+                cond, t, f, u = args
+                return sympy.Piecewise((t, cond==True), (f, cond==False), (u, True))
+
+        return None
 
 
 class Interrupt(Builtin):
