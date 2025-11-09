@@ -1207,20 +1207,17 @@ class NumericArray(Atom, ImmutableValueMixin):
     def sameQ(self, rhs) -> bool:
         return isinstance(rhs, NumericArray) and numpy.array_equal(self.value, rhs.value)
 
-    def to_sympy(self, **kwargs):
+    def to_sympy(self, **kwargs) -> None:
         return None
 
     # TODO: note that this returns a simple python list (of lists),
     # not the numpy array - ok?
-    def to_python(self, *args, **kwargs):
+    def to_python(self, *args, **kwargs) -> list:
         return self.value.tolist()
 
-    # TODO: what is this? is it right?
+    # TODO: for efficiency we use only first 100 bytes (as with __hash__) - ok?
     def user_hash(self, update):
-        update(self._summary[2])
-
-    def __getnewargs__(self):
-        return (self.value, self.value.dtype)
+        update(self.value.tobytes()[:100])
 
 
 class String(Atom, BoxElementMixin):
