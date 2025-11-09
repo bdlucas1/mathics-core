@@ -102,10 +102,10 @@ def get_symbol_values(
         A list of rules. None if `symbol` is not a Symbol.
 
     """
-    if not isinstance(symbol, Symbol):
+    name = symbol.get_name()
+    if not name:
         evaluation.message(func_name, "sym", symbol, 1)
         return None
-    name = symbol.get_name()
     definitions = evaluation.definitions
     try:
         definition = (

@@ -40,10 +40,10 @@ from mathics.core.element import ElementsProperties, EvalMixin, ensure_context
 from mathics.core.evaluation import Evaluation
 from mathics.core.interrupt import ReturnInterrupt
 from mathics.core.keycomparable import (
-    BASIC_EXPRESSION_ELT_ORDER,
-    BASIC_NUMERIC_EXPRESSION_ELT_ORDER,
-    GENERAL_EXPRESSION_ELT_ORDER,
-    GENERAL_NUMERIC_EXPRESSION_ELT_ORDER,
+    BASIC_EXPRESSION_SORT_KEY,
+    BASIC_NUMERIC_EXPRESSION_SORT_KEY,
+    GENERAL_EXPRESSION_SORT_KEY,
+    GENERAL_NUMERIC_EXPRESSION_SORT_KEY,
     Monomial,
 )
 from mathics.core.structure import LinkedStructure
@@ -355,24 +355,14 @@ class Expression(BaseElement, NumericOperators, EvalMixin):
         """
 
         # All of the properties start out optimistic (True) and are reset when that proves wrong.
-        self.elements_properties = ElementsProperties(True, True, True, True)
+        self.elements_properties = ElementsProperties(True, True, True)
 
         last_element = None
         values = []
-        last_lookup_name = ""
-        uniform = True
         for element in self._elements:
             # Test for the literalness, and the three properties mentioned above
             if not element.is_literal:
                 self.elements_properties.elements_fully_evaluated = False
-
-            if uniform:
-                lookup_name = element.get_lookup_name()
-                if last_lookup_name:
-                    if lookup_name != last_lookup_name:
-                        uniform = self.elements_properties.is_uniform = False
-                else:
-                    last_lookup_name = lookup_name
 
             if isinstance(element, Expression):
                 # "self" can't be flat.
@@ -897,7 +887,7 @@ class Expression(BaseElement, NumericOperators, EvalMixin):
         of an expression. The tuple is ultimately compared lexicographically.
         """
         """
-        General element order key structure:
+        General sort key structure:
         0: 1/2:        Numeric / General Expression
         1: 2/3         Special arithmetic (Times / Power) / General Expression
         2: Element:        Head
@@ -932,9 +922,9 @@ class Expression(BaseElement, NumericOperators, EvalMixin):
         if exps:
             return (
                 (
-                    BASIC_NUMERIC_EXPRESSION_ELT_ORDER
+                    BASIC_NUMERIC_EXPRESSION_SORT_KEY
                     if self.is_numeric()
-                    else BASIC_EXPRESSION_ELT_ORDER
+                    else BASIC_EXPRESSION_SORT_KEY
                 ),
                 Monomial(exps),
                 1,
@@ -945,9 +935,9 @@ class Expression(BaseElement, NumericOperators, EvalMixin):
         else:
             return (
                 (
-                    GENERAL_NUMERIC_EXPRESSION_ELT_ORDER
+                    GENERAL_NUMERIC_EXPRESSION_SORT_KEY
                     if self.is_numeric()
-                    else GENERAL_EXPRESSION_ELT_ORDER
+                    else GENERAL_EXPRESSION_SORT_KEY
                 ),
                 head,
                 len(self._elements),
@@ -1306,7 +1296,6 @@ class Expression(BaseElement, NumericOperators, EvalMixin):
                 else:
                     return threaded, True
 
-        elements_properties = new.elements_properties
         # Step 6:
         # Look at the rules associated with:
         #   1. the upvalues of each element
@@ -1346,17 +1335,15 @@ class Expression(BaseElement, NumericOperators, EvalMixin):
         def rules():
             rules_names = set()
             if not A_HOLD_ALL_COMPLETE & attributes:
-                sample_elements = (
-                    (elements[0],)
-                    if elements and elements_properties.is_uniform
-                    else elements
-                )
-                for element in sample_elements:
+                for element in elements:
+                    if not isinstance(element, EvalMixin):
+                        continue
                     name = element.get_lookup_name()
-                    if name and name not in rules_names:
-                        rules_names.add(name)
-                        for rule in evaluation.definitions.get_upvalues(name):
-                            yield rule
+                    if len(name) > 0:  # only lookup rules if this is a symbol
+                        if name not in rules_names:
+                            rules_names.add(name)
+                            for rule in evaluation.definitions.get_upvalues(name):
+                                yield rule
             lookup_name = new.get_lookup_name()
             if lookup_name == new.get_head_name():
                 for rule in evaluation.definitions.get_downvalues(lookup_name):

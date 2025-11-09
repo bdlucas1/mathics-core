@@ -60,7 +60,7 @@ class Format(Builtin):
 
     Raw objects cannot be formatted:
     >> Format[3] = "three";
-     : Tag Integer in 3 is Protected.
+     : Cannot assign to raw object 3.
 
     Format types must be symbols:
     >> Format[r, a + b] = "r";

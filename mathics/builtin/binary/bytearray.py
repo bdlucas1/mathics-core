@@ -1,18 +1,16 @@
 # -*- coding: utf-8 -*-
 """
-ByteArrays
+Byte Arrays
 """
 
-from typing import Optional
-
-from mathics.core.atoms import ByteArray, Integer, String
+from mathics.core.atoms import ByteArrayAtom, Integer, String
 from mathics.core.builtin import Builtin
 from mathics.core.convert.expression import to_mathics_list
-from mathics.core.evaluation import Evaluation
-from mathics.core.list import ListExpression
+from mathics.core.expression import Expression
+from mathics.core.systemsymbols import SymbolByteArray, SymbolFailed
 
 
-class ByteArray_(Builtin):
+class ByteArray(Builtin):
     r"""
     <url>:WMA link:
     https://reference.wolfram.com/language/ref/ByteArray.html</url>
@@ -37,55 +35,44 @@ class ByteArray_(Builtin):
     >> ByteArray["ARkD"]
      = ByteArray[<3>]
     >> B=ByteArray["asy"]
-     : The argument at position 1 in ByteArray[asy] should be a vector of unsigned byte values or a Base64-encoded string.
-     = ByteArray[asy]
-
-    A 'ByteArray" is a kind of Atom:
-
-    >> AtomQ[ByteArray[{4, 2}]]
-     = True
+     : The first argument in Bytearray[asy] should be a B64 encoded string or a vector of integers.
+     = $Failed
     """
 
     messages = {
-        "batd": "Elements in `1` are not unsigned byte values.",
-        "lend": (
-            "The argument at position 1 in ByteArray[`1`] should "
-            "be a vector of unsigned byte values or a Base64-encoded string."
-        ),
+        "aotd": "Elements in `1` are inconsistent with type Byte",
+        "lend": "The first argument in Bytearray[`1`] should "
+        + "be a B64 encoded string or a vector of integers.",
     }
-
-    name = "ByteArray"
     summary_text = "array of bytes"
 
-    def eval_str(self, string, evaluation: Evaluation) -> Optional[ByteArray]:
+    def eval_str(self, string, evaluation):
         "ByteArray[string_String]"
         try:
-            atom = ByteArray(string.value)
-        except TypeError:
+            atom = ByteArrayAtom(string.value)
+        except Exception:
             evaluation.message("ByteArray", "lend", string)
-            return None
-        return atom
+            return SymbolFailed
+        return Expression(SymbolByteArray, atom)
 
-    def eval_to_str(self, baa, evaluation: Evaluation):
-        "ToString[baa_ByteArray]"
+    def eval_to_str(self, baa, evaluation):
+        "ToString[ByteArray[baa_ByteArrayAtom]]"
         return String(f"ByteArray[<{len(baa.value)}>]")
 
-    def eval_normal(self, baa, evaluation: Evaluation):
-        "System`Normal[baa_ByteArray]"
+    def eval_normal(self, baa, evaluation):
+        "System`Normal[ByteArray[baa_ByteArrayAtom]]"
         return to_mathics_list(*baa.value, elements_conversion_fn=Integer)
 
-    def eval_list(self, values, evaluation) -> Optional[ByteArray]:
-        "ByteArray[values_]"
-        if not isinstance(values, ListExpression):
-            evaluation.message("ByteArray", "lend", values)
-            return None
-
+    def eval_list(self, values, evaluation):
+        "ByteArray[values_List]"
+        if not values.has_form("List", None):
+            return
         try:
-            ba = ByteArray(bytearray([b.value for b in values.elements]))
+            ba = bytearray([b.get_int_value() for b in values.elements])
         except Exception:
-            evaluation.message("ByteArray", "batd", values)
-            return None
-        return ba
+            evaluation.message("ByteArray", "aotd", values)
+            return
+        return Expression(SymbolByteArray, ByteArrayAtom(ba))
 
 
 # TODO: BaseEncode, BaseDecode, ByteArrayQ, ByteArrayToString, StringToByteArray, ImportByteArray, ExportByteArray
