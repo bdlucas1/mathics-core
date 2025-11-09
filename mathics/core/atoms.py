@@ -19,6 +19,7 @@ from mathics.core.element import BoxElementMixin, ImmutableValueMixin
 from mathics.core.keycomparable import (
     BASIC_ATOM_BYTEARRAY_ELT_ORDER,
     BASIC_ATOM_NUMBER_ELT_ORDER,
+    BASIC_ATOM_NUMERICARRAY_ELT_ORDER,
     BASIC_ATOM_STRING_ELT_ORDER,
 )
 from mathics.core.number import (
@@ -1159,17 +1160,15 @@ class NumericArray(Atom, ImmutableValueMixin):
             raise ValueError(message)
 
         # summary and hash
-        self._summary = (self._type_name, self.value.shape, self.value.tobytes())
         shape_string = "×".join(str(dim) for dim in self.value.shape) or "0"
         self._summary_string = f"{self._type_name}, {shape_string}"
         self._hash = None
 
     # TODO: this is potentially expensive - what if we left it unimplemented? is hashing a numpy array reasonable?
-    # TODO: or maybe make self._summary included only some of the bytes, since it's just a hash?
+    # TODO: to make it less expensive only look at first 100 bytes - ok? needed?
     def __hash__(self):
         if not self._hash:
-            print("HASHING NUMERICARRAY")
-            self._hash = hash(("NumericArray", self._summary))
+            self._hash = hash(("NumericArray", self.value.shape, self.value.tobytes()[:100]))
         return self._hash
 
     def __str__(self) -> str:
@@ -1185,8 +1184,21 @@ class NumericArray(Atom, ImmutableValueMixin):
         return f"NumericArray[<{self._summary_string}>]"
 
     @property
+    def items(self) -> Tuple:
+        from mathics.core.convert.python import from_python
+        if len(self.value.shape) == 1:
+            return tuple(from_python(item.item()) for item in self.value)
+        else:
+            return tuple(NumericArray(array) for array in self.value)
+
+    @property
     def element_order(self) -> tuple:
-        return (BASIC_ATOM_STRING_OR_BYTEARRAY_SORT_KEY, *self._summary)
+        return (
+            BASIC_ATOM_NUMERICARRAY_ELT_ORDER,
+            self.value.shape,
+            self.value.dtype,
+            self.value.tobytes()
+        )
 
     @property
     def pattern_precedence(self) -> tuple:
