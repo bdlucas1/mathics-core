@@ -114,6 +114,7 @@ class PlotOptions:
         # MaxRecursion Option
         maxrec_option = expr.get_option(options, "MaxRecursion", evaluation)
         max_depth = maxrec_option.to_python()
+        print("xxx max_depth", max_depth)
         if isinstance(max_depth, int):
             if max_depth < 0:
                 max_depth = 0

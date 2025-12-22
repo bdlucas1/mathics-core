@@ -18,6 +18,7 @@ from mathics.core.systemsymbols import (
     SymbolAutomatic,
     SymbolFull,
     SymbolNone,
+    SymbolSequence,
 )
 from mathics.eval.drawing.plot import (
     ListPlotType,
@@ -33,6 +34,9 @@ from mathics.eval.nevaluator import eval_N
 # This tells documentation how to sort this module
 from .plot import sort_order  # noqa
 
+
+# XXXXXX move to .plot
+from.plot_plot3d import PlotOptions
 
 class _Plot(Builtin, ABC):
     attributes = A_HOLD_ALL | A_PROTECTED | A_READ_PROTECTED
@@ -62,7 +66,7 @@ class _Plot(Builtin, ABC):
         {
             "Axes": "True",
             "AspectRatio": "1 / GoldenRatio",
-            "MaxRecursion": "Automatic",
+            "MaxRecursion": "3",
             "Mesh": "None",
             "PlotRange": "Automatic",
             "PlotPoints": "None",
@@ -77,10 +81,10 @@ class _Plot(Builtin, ABC):
         if value is not None:
             return (x_value, value)
 
-    def eval(self, functions, x, start, stop, evaluation: Evaluation, options: dict):
-        """%(name)s[functions_, {x_Symbol, start_, stop_},
-        OptionsPattern[%(name)s]]"""
+    def eval(self, functions, ranges, evaluation: Evaluation, options: dict):
+        """%(name)s[functions_, ranges__,  OptionsPattern[%(name)s]]"""
 
+        x, start, stop = ranges.elements
         (
             functions,
             x_name,
@@ -93,6 +97,75 @@ class _Plot(Builtin, ABC):
         ) = self.process_function_and_options(
             functions, x, start, stop, evaluation, options
         )
+
+        print("functions", functions)
+        print("x_name", x_name)
+        print("py_start", py_start)
+        print("py_stop", py_stop)
+
+        # plotrange
+        print("x_range", x_range)
+        print("y_range", y_range)
+
+        ##################### TODO: LIFTED FROM plot_plot3d - DRY this #########################
+
+        # parse options, bailing out if anything is wrong
+        try:
+            ranges = ranges.elements if ranges.head is SymbolSequence else [ranges]
+            plot_options = PlotOptions(self, ranges, options, evaluation)
+        except ValueError:
+            return None
+
+        """
+
+        # TODO: consult many_functions variable set by subclass and error
+        # if many_functions is False but multiple are supplied
+        if functions.has_form("List", None):
+            plot_options.functions = functions.elements
+        else:
+            plot_options.functions = [functions]
+
+        # subclass must set eval_function and graphics_class
+        eval_function = plot.get_plot_eval_function(self.__class__)
+        graphics = eval_function(plot_options, evaluation)
+        if not graphics:
+            return
+
+        # Expand PlotRange option using the {x,xmin,xmax} etc. range specifications
+        # Pythonize it, so Symbol becomes str, numeric becomes int or float
+        plot_range = self.get_option(options, str(SymbolPlotRange), evaluation)
+        plot_range = plot_range.to_python()
+        dim = 3 if self.graphics_class is Graphics3D else 2
+        if isinstance(plot_range, str):
+            # PlotRange -> Automatic becomes PlotRange -> {Automatic, ...}
+            plot_range = [str(SymbolAutomatic)] * dim
+        if isinstance(plot_range, (int, float)):
+            # PlotRange -> s becomes PlotRange -> {Automatic,...,{-s,s}}
+            pr = plot_range
+            plot_range = [str(SymbolAutomatic)] * dim
+            plot_range[-1] = [-pr, pr]
+        elif isinstance(plot_range, (list, tuple)) and isinstance(
+            plot_range[0], (int, float)
+        ):
+            # PlotRange -> {s0,s1} becomes  PlotRange -> {Automatic,...,{s0,s1}}
+            pr = plot_range
+            plot_range = [str(SymbolAutomatic)] * dim
+            plot_range[-1] = pr
+
+        # now we have a list of length dim
+        # handle Automatic ~ {xmin,xmax} etc.
+        for i, (pr, r) in enumerate(zip(plot_range, plot_options.ranges)):
+            # TODO: this treats Automatic and Full as the same, which isn't quite right
+            if isinstance(pr, str) and not isinstance(r[1], complex):
+                plot_range[i] = r[1:]  # extract {xmin,xmax} from {x,xmin,xmax}
+
+        # unpythonize and update PlotRange option
+        options[str(SymbolPlotRange)] = to_mathics_list(*plot_range)
+        """
+
+        ############################################
+
+
 
         # Mesh Option
         mesh_option = self.get_option(options, "Mesh", evaluation)
@@ -113,38 +186,7 @@ class _Plot(Builtin, ABC):
             return
 
         # MaxRecursion Option
-        max_recursion_limit = 15
-        maxrecursion_option = self.get_option(options, "MaxRecursion", evaluation)
-
-        # Investigate whether the maxrecursion value is optimal. Bruce
-        # Lucas observes that in some cases, using more points and
-        # decreasing recursion is faster and gives better results.
-        # Note that the tradeoff may be different for Plot versus
-        # Plot3D. Recursive subdivision in Plot3D is probably a lot
-        # harder.
-        maxrecursion = 3
-
-        try:
-            if maxrecursion_option is not SymbolAutomatic:
-                maxrecursion = maxrecursion_option.to_python()
-                if maxrecursion == float("inf"):
-                    maxrecursion = max_recursion_limit
-                    raise ValueError
-                elif isinstance(maxrecursion, int):
-                    if maxrecursion > max_recursion_limit:
-                        maxrecursion = max_recursion_limit
-                        raise ValueError
-                    if maxrecursion < 0:
-                        maxrecursion = 0
-                        raise ValueError
-                else:
-                    maxrecursion = 0
-                    raise ValueError
-        except ValueError:
-            evaluation.message(
-                self.get_name(), "invmaxrec", maxrecursion_option, max_recursion_limit
-            )
-        assert isinstance(maxrecursion, int)
+        maxrecursion = plot_options.max_depth
 
         # Exclusions Option
         # TODO: Make exclusions option work properly with ParametricPlot
