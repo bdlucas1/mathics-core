@@ -95,14 +95,6 @@ class _Plot(Builtin, ABC):
         # functions
         plot_options.functions = self.get_functions_param(functions)
 
-        # Mesh Option
-        mesh_option = self.get_option(options, "Mesh", evaluation)
-        if mesh_option not in (SymbolNone, SymbolFull, SymbolAll):
-            evaluation.message("Mesh", "ilevels", mesh_option)
-            mesh = "System`None"
-        else:
-            mesh = mesh_option.to_python()
-
         # PlotPoints Option
         plotpoints_option = self.get_option(options, "PlotPoints", evaluation)
         if plotpoints_option is SymbolNone:
@@ -152,6 +144,7 @@ class _Plot(Builtin, ABC):
         py_start, py_stop = plot_options.ranges[0][1:3]
         x_range = plot_options.plot_range[0]
         y_range = plot_options.plot_range[1]
+        mesh = plot_options.mesh
 
         use_log_scale = self.use_log_scale
         return eval_Plot(

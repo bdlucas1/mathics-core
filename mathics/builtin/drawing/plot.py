@@ -393,6 +393,14 @@ class Histogram(Builtin):
         )
 
 
+#
+# TODO: because of the history of this code, it's very inconsistent about
+# strings vs symbols. Keep moving it towards Symbols.
+#
+# Some of this is because to_python is convient because it turns List into list,
+# but it also turns Symbols to str. Maybe needs an option not to do that, e.g.
+# to_python(preserve_symbols=True)
+#
 class PlotOptions:
     """
     Extract Options common to many types of plotting.
@@ -412,7 +420,7 @@ class PlotOptions:
             evaluation.message(builtin.get_name(), *args, **kwargs)
             raise ValueError()
 
-        # plot ranges of the form {x,xmin,xmax} etc.
+        # plot ranges of the form {x,xmin,xmax} etc. (returns Symbol)
         self.ranges = []
         for range_expr in range_exprs:
             if not range_expr.has_form("List", 3):
@@ -433,7 +441,7 @@ class PlotOptions:
                 error("invrange", range_expr)
             self.ranges.append(range)
 
-        # Contours option
+        # Contours option (returns str)
         contours = builtin.get_option(options, "Contours", evaluation)
         if contours is not None:
             c = contours.to_python()
@@ -446,14 +454,14 @@ class PlotOptions:
                 error("invcontour", contours)
             self.contours = c
 
-        # Mesh option
+        # Mesh option (returns Symbol)
         mesh = builtin.get_option(options, "Mesh", evaluation)
         if mesh not in (SymbolNone, SymbolFull, SymbolAll):
             evaluation.message("Mesh", "ilevels", mesh)
             mesh = SymbolFull
         self.mesh = mesh
 
-        # PlotPoints option
+        # PlotPoints option (returns str, maybe)
         plotpoints_option = builtin.get_option(options, "PlotPoints", evaluation)
         plotpoints = plotpoints_option.to_python()
 
@@ -502,6 +510,7 @@ class PlotOptions:
         # PlotRange option
         # Expand PlotRange option using the {x,xmin,xmax} etc. range specifications
         # Pythonize it, so Symbol becomes str, numeric becomes int or float
+        # (returns  str)
         #
         plot_range = builtin.get_option(options, str(SymbolPlotRange), evaluation)
         plot_range = eval_N(plot_range, evaluation).to_python()  # TODO: add this to plot3d and add a test!

@@ -25,11 +25,14 @@ from mathics.core.expression import Expression
 from mathics.core.list import ListExpression
 from mathics.core.symbols import SymbolN, SymbolTrue
 from mathics.core.systemsymbols import (
+    SymbolAll,
+    SymbolFull,
     SymbolGraphics,
     SymbolHue,
     SymbolLine,
     SymbolLog10,
     SymbolLogPlot,
+    SymbolNone,
     SymbolPoint,
     SymbolPolygon,
 )
@@ -560,7 +563,7 @@ def eval_Plot(
         ymin, ymax = automatic_plot_range([yy for xx, yy in base_points])
         yscale = 1.0 / zero_to_one(ymax - ymin)
 
-        if mesh == "System`Full":
+        if mesh is SymbolFull:
             for line in points:
                 tmp_mesh_points.extend(line)
 
@@ -651,11 +654,11 @@ def eval_Plot(
         for line in points:
             plot_points.extend(line)
 
-        if mesh == "System`All":
+        if mesh is SymbolAll:
             for line in points:
                 tmp_mesh_points.extend(line)
 
-        if mesh != "System`None":
+        if mesh is not SymbolNone:
             mesh_points.append(tmp_mesh_points)
 
         function_hues.append(hue)
