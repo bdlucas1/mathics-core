@@ -33,12 +33,11 @@ from mathics.eval.drawing.plot import (
 )
 from mathics.eval.nevaluator import eval_N
 
+from . import plot
+
 # This tells documentation how to sort this module
 from .plot import sort_order  # noqa
 
-
-# XXXXXX move to .plot
-from.plot_plot3d import PlotOptions
 
 class _Plot(Builtin, ABC):
     attributes = A_HOLD_ALL | A_PROTECTED | A_READ_PROTECTED
@@ -89,7 +88,7 @@ class _Plot(Builtin, ABC):
         # parse options, bailing out if anything is wrong
         try:
             ranges = ranges.elements if ranges.head is SymbolSequence else [ranges]
-            plot_options = PlotOptions(self, ranges, options, evaluation)
+            plot_options = plot.PlotOptions(self, ranges, options, evaluation)
         except ValueError:
             return None
 

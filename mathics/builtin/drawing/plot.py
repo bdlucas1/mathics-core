@@ -24,14 +24,19 @@ from mathics.core.expression import Expression
 from mathics.core.list import ListExpression
 from mathics.core.symbols import Symbol
 from mathics.core.systemsymbols import (
+    SymbolAll,
     SymbolEdgeForm,
+    SymbolFull,
     SymbolGraphics,
     SymbolLine,
+    SymbolNone,
     SymbolRGBColor,
     SymbolStyle,
 )
 from mathics.eval.drawing.colors import COLOR_PALETTES, get_color_palette
 from mathics.eval.drawing.plot import get_plot_range
+from mathics.eval.nevaluator import eval_N
+
 
 # The vectorized plot function generates GraphicsComplex using NumericArray,
 # which no consumer will currently understand. So lets make it opt-in for now.
@@ -383,4 +388,124 @@ class Histogram(Builtin):
             SymbolGraphics,
             ListExpression(*graphics),
             *options_to_rules(options, Graphics.options),
+        )
+
+
+class PlotOptions:
+    """
+    Extract Options common to many types of plotting.
+    This aims to reduce duplication of code,
+    and to make it easier to pass options to eval_* routines.
+    """
+
+    # TODO: more precise types
+    ranges: list
+    mesh: str
+    plotpoints: list
+    maxdepth: int
+
+    def error(self, what, *args, **kwargs):
+        if not isinstance(what, str):
+            what = what.get_name()
+        self.evaluation.message(what, *args, **kwargs)
+        raise ValueError()
+
+    def __init__(self, expr, range_exprs, options, evaluation):
+        self.evaluation = evaluation
+
+        # plot ranges of the form {x,xmin,xmax} etc.
+        self.ranges = []
+        for range_expr in range_exprs:
+            if not range_expr.has_form("List", 3):
+                self.error(expr, "invrange", range_expr)
+            if not isinstance(range_expr.elements[0], Symbol):
+                self.error(expr, "invrange", range_expr)
+            range = [range_expr.elements[0]]
+            for limit_expr in range_expr.elements[1:3]:
+                limit = eval_N(limit_expr, evaluation).to_python()
+                if not isinstance(limit, (int, float, complex)):
+                    self.error(expr, "plln", limit_expr, range_expr)
+                range.append(limit)
+            if isinstance(limit, (int, float)) and range[2] <= range[1]:
+                self.error(expr, "invrange", range_expr)
+            if isinstance(limit, complex) and (
+                range[2].real <= range[1].real or range[2].imag <= range[1].imag
+            ):
+                self.error(expr, "invrange", range_expr)
+            self.ranges.append(range)
+
+        # Contours option
+        contours = expr.get_option(options, "Contours", evaluation)
+        if contours is not None:
+            c = contours.to_python()
+            if not (
+                c == "System`Automatic"
+                or isinstance(c, int)
+                or isinstance(c, tuple)
+                and all(isinstance(cc, (int, float)) for cc in c)
+            ):
+                self.error(expr, "invcontour", contours)
+            self.contours = c
+
+        # Mesh option
+        mesh = expr.get_option(options, "Mesh", evaluation)
+        if mesh not in (SymbolNone, SymbolFull, SymbolAll):
+            evaluation.message("Mesh", "ilevels", mesh)
+            mesh = SymbolFull
+        self.mesh = mesh
+
+        # PlotPoints option
+        plotpoints_option = expr.get_option(options, "PlotPoints", evaluation)
+        plotpoints = plotpoints_option.to_python()
+
+        def check_plotpoints(steps):
+            if isinstance(steps, int) and steps > 0:
+                return True
+            return False
+
+        default_plotpoints = (200, 200) if use_vectorized_plot else (7, 7)
+        if plotpoints == "System`None":
+            plotpoints = default_plotpoints
+        elif check_plotpoints(plotpoints):
+            plotpoints = (plotpoints, plotpoints)
+        if not (
+            isinstance(plotpoints, (list, tuple))
+            and len(plotpoints) == 2
+            and check_plotpoints(plotpoints[0])
+            and check_plotpoints(plotpoints[1])
+        ):
+            evaluation.message(expr.get_name(), "invpltpts", plotpoints)
+            plotpoints = default_plotpoints
+        self.plotpoints = plotpoints
+
+        # MaxRecursion Option
+        maxrec_option = expr.get_option(options, "MaxRecursion", evaluation)
+        max_depth = maxrec_option.to_python()
+        if isinstance(max_depth, int):
+            if max_depth < 0:
+                max_depth = 0
+                evaluation.message(expr.get_name(), "invmaxrec", max_depth, 15)
+            elif max_depth > 15:
+                max_depth = 15
+                evaluation.message(expr.get_name(), "invmaxrec", max_depth, 15)
+            else:
+                pass  # valid
+        elif max_depth == float("inf"):
+            max_depth = 15
+            evaluation.message(expr.get_name(), "invmaxrec", max_depth, 15)
+        else:
+            max_depth = 0
+            evaluation.message(expr.get_name(), "invmaxrec", max_depth, 15)
+        self.max_depth = max_depth
+
+        # ColorFunction and ColorFunctionScaling options
+        # This was pulled from construct_density_plot (now eval_DensityPlot).
+        # TODO: What does pop=True do? is it right?
+        # TODO: can we move some of the subsequent processing in eval_DensityPlot to here?
+        # TODO: what is the type of these? that may change if we do the above...
+        self.color_function = expr.get_option(
+            options, "ColorFunction", evaluation, pop=True
+        )
+        self.color_function_scaling = expr.get_option(
+            options, "ColorFunctionScaling", evaluation, pop=True
         )
