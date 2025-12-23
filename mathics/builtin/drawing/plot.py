@@ -513,7 +513,7 @@ class PlotOptions:
             pr = float(plot_range)
             plot_range = [str(SymbolAutomatic)] * dim
             plot_range[-1] = [-pr, pr]
-            if builtin.get_name() == "ParametricPlot":
+            if builtin.get_name() == "System`ParametricPlot":
                 plot_range[0] = [-pr, pr]
         elif isinstance(plot_range, (list, tuple)) and isinstance(
             plot_range[0], (int, float)

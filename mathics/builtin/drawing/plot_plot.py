@@ -95,40 +95,6 @@ class _Plot(Builtin, ABC):
         # functions
         plot_options.functions = self.get_functions_param(functions)
 
-
-        ##################### TODO: LIFTED FROM plot_plot3d - DRY this #########################
-
-        # Expand PlotRange option using the {x,xmin,xmax} etc. range specifications
-        # Pythonize it, so Symbol becomes str, numeric becomes int or float
-        plot_range = self.get_option(options, str(SymbolPlotRange), evaluation)
-        plot_range = eval_N(plot_range, evaluation).to_python()  # TODO: add this to plot3d and add a test!
-        #dim = 3 if self.graphics_class is Graphics3D else 2 # TODO: careful!
-        dim = 2
-        if isinstance(plot_range, str):
-            # PlotRange -> Automatic becomes PlotRange -> {Automatic, ...}
-            plot_range = [plot_range] * dim
-        if isinstance(plot_range, (int, float)):
-            # PlotRange -> s becomes PlotRange -> {Automatic,...,{-s,s}}
-            pr = float(plot_range)
-            plot_range = [str(SymbolAutomatic)] * dim
-            plot_range[-1] = [-pr, pr]
-            if isinstance(self, ParametricPlot):
-                plot_range[0] = [-pr, pr]
-        elif isinstance(plot_range, (list, tuple)) and isinstance(
-            plot_range[0], (int, float)
-        ):
-            # PlotRange -> {s0,s1} becomes  PlotRange -> {Automatic,...,{s0,s1}}
-            pr = plot_range
-            plot_range = [str(SymbolAutomatic)] * dim
-            plot_range[-1] = pr
-
-        # unpythonize and update PlotRange option
-        # TODO: let Plot do this, and also update Plot3D to do same
-        #options[str(SymbolPlotRange)] = to_mathics_list(*plot_range)
-
-        ############################################
-
-
         # Mesh Option
         mesh_option = self.get_option(options, "Mesh", evaluation)
         if mesh_option not in (SymbolNone, SymbolFull, SymbolAll):
@@ -184,8 +150,8 @@ class _Plot(Builtin, ABC):
         functions = plot_options.functions
         x_name = str(plot_options.ranges[0][0])
         py_start, py_stop = plot_options.ranges[0][1:3]
-        x_range = plot_range[0]
-        y_range = plot_range[1]
+        x_range = plot_options.plot_range[0]
+        y_range = plot_options.plot_range[1]
 
         use_log_scale = self.use_log_scale
         return eval_Plot(
