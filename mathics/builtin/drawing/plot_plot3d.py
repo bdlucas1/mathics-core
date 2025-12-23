@@ -91,8 +91,9 @@ class _Plot3D(Builtin):
 
         # parse options, bailing out if anything is wrong
         try:
+            dim = 3 if self.graphics_class is Graphics3D else 2
             ranges = ranges.elements if ranges.head is SymbolSequence else [ranges]
-            plot_options = plot.PlotOptions(self, ranges, options, evaluation)
+            plot_options = plot.PlotOptions(self, ranges, options, dim, evaluation)
         except ValueError:
             return None
 

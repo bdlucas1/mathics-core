@@ -25,11 +25,13 @@ from mathics.core.list import ListExpression
 from mathics.core.symbols import Symbol
 from mathics.core.systemsymbols import (
     SymbolAll,
+    SymbolAutomatic,
     SymbolEdgeForm,
     SymbolFull,
     SymbolGraphics,
     SymbolLine,
     SymbolNone,
+    SymbolPlotRange,
     SymbolRGBColor,
     SymbolStyle,
 )
@@ -404,38 +406,35 @@ class PlotOptions:
     plotpoints: list
     maxdepth: int
 
-    def error(self, what, *args, **kwargs):
-        if not isinstance(what, str):
-            what = what.get_name()
-        self.evaluation.message(what, *args, **kwargs)
-        raise ValueError()
+    def __init__(self, builtin, range_exprs, options, dim, evaluation):
 
-    def __init__(self, expr, range_exprs, options, evaluation):
-        self.evaluation = evaluation
+        def error(*args, **kwargs):
+            evaluation.message(builtin.get_name(), *args, **kwargs)
+            raise ValueError()
 
         # plot ranges of the form {x,xmin,xmax} etc.
         self.ranges = []
         for range_expr in range_exprs:
             if not range_expr.has_form("List", 3):
-                self.error(expr, "invrange", range_expr)
+                error("invrange", range_expr)
             if not isinstance(range_expr.elements[0], Symbol):
-                self.error(expr, "invrange", range_expr)
+                error("invrange", range_expr)
             range = [range_expr.elements[0]]
             for limit_expr in range_expr.elements[1:3]:
                 limit = eval_N(limit_expr, evaluation).to_python()
                 if not isinstance(limit, (int, float, complex)):
-                    self.error(expr, "plln", limit_expr, range_expr)
+                    error("plln", limit_expr, range_expr)
                 range.append(limit)
             if isinstance(limit, (int, float)) and range[2] <= range[1]:
-                self.error(expr, "invrange", range_expr)
+                error("invrange", range_expr)
             if isinstance(limit, complex) and (
                 range[2].real <= range[1].real or range[2].imag <= range[1].imag
             ):
-                self.error(expr, "invrange", range_expr)
+                error("invrange", range_expr)
             self.ranges.append(range)
 
         # Contours option
-        contours = expr.get_option(options, "Contours", evaluation)
+        contours = builtin.get_option(options, "Contours", evaluation)
         if contours is not None:
             c = contours.to_python()
             if not (
@@ -444,18 +443,18 @@ class PlotOptions:
                 or isinstance(c, tuple)
                 and all(isinstance(cc, (int, float)) for cc in c)
             ):
-                self.error(expr, "invcontour", contours)
+                error("invcontour", contours)
             self.contours = c
 
         # Mesh option
-        mesh = expr.get_option(options, "Mesh", evaluation)
+        mesh = builtin.get_option(options, "Mesh", evaluation)
         if mesh not in (SymbolNone, SymbolFull, SymbolAll):
             evaluation.message("Mesh", "ilevels", mesh)
             mesh = SymbolFull
         self.mesh = mesh
 
         # PlotPoints option
-        plotpoints_option = expr.get_option(options, "PlotPoints", evaluation)
+        plotpoints_option = builtin.get_option(options, "PlotPoints", evaluation)
         plotpoints = plotpoints_option.to_python()
 
         def check_plotpoints(steps):
@@ -474,38 +473,65 @@ class PlotOptions:
             and check_plotpoints(plotpoints[0])
             and check_plotpoints(plotpoints[1])
         ):
-            evaluation.message(expr.get_name(), "invpltpts", plotpoints)
+            evaluation.message(builtin.get_name(), "invpltpts", plotpoints)
             plotpoints = default_plotpoints
         self.plotpoints = plotpoints
 
         # MaxRecursion Option
-        maxrec_option = expr.get_option(options, "MaxRecursion", evaluation)
+        maxrec_option = builtin.get_option(options, "MaxRecursion", evaluation)
         max_depth = maxrec_option.to_python()
         if isinstance(max_depth, int):
             if max_depth < 0:
                 max_depth = 0
-                evaluation.message(expr.get_name(), "invmaxrec", max_depth, 15)
+                evaluation.message(builtin.get_name(), "invmaxrec", max_depth, 15)
             elif max_depth > 15:
                 max_depth = 15
-                evaluation.message(expr.get_name(), "invmaxrec", max_depth, 15)
+                evaluation.message(builtin.get_name(), "invmaxrec", max_depth, 15)
             else:
                 pass  # valid
         elif max_depth == float("inf"):
             max_depth = 15
-            evaluation.message(expr.get_name(), "invmaxrec", max_depth, 15)
+            evaluation.message(builtin.get_name(), "invmaxrec", max_depth, 15)
         else:
             max_depth = 0
-            evaluation.message(expr.get_name(), "invmaxrec", max_depth, 15)
+            evaluation.message(builtin.get_name(), "invmaxrec", max_depth, 15)
         self.max_depth = max_depth
+
+
+        #
+        # PlotRange option
+        # Expand PlotRange option using the {x,xmin,xmax} etc. range specifications
+        # Pythonize it, so Symbol becomes str, numeric becomes int or float
+        #
+        plot_range = builtin.get_option(options, str(SymbolPlotRange), evaluation)
+        plot_range = eval_N(plot_range, evaluation).to_python()  # TODO: add this to plot3d and add a test!
+        if isinstance(plot_range, str):
+            # PlotRange -> Automatic becomes PlotRange -> {Automatic, ...}
+            plot_range = [plot_range] * dim
+        if isinstance(plot_range, (int, float)):
+            # PlotRange -> s becomes PlotRange -> {Automatic,...,{-s,s}}
+            pr = float(plot_range)
+            plot_range = [str(SymbolAutomatic)] * dim
+            plot_range[-1] = [-pr, pr]
+            if builtin.get_name() == "ParametricPlot":
+                plot_range[0] = [-pr, pr]
+        elif isinstance(plot_range, (list, tuple)) and isinstance(
+            plot_range[0], (int, float)
+        ):
+            # PlotRange -> {s0,s1} becomes  PlotRange -> {Automatic,...,{s0,s1}}
+            pr = plot_range
+            plot_range = [str(SymbolAutomatic)] * dim
+            plot_range[-1] = pr
+        self.plot_range = plot_range
 
         # ColorFunction and ColorFunctionScaling options
         # This was pulled from construct_density_plot (now eval_DensityPlot).
         # TODO: What does pop=True do? is it right?
         # TODO: can we move some of the subsequent processing in eval_DensityPlot to here?
         # TODO: what is the type of these? that may change if we do the above...
-        self.color_function = expr.get_option(
+        self.color_function = builtin.get_option(
             options, "ColorFunction", evaluation, pop=True
         )
-        self.color_function_scaling = expr.get_option(
+        self.color_function_scaling = builtin.get_option(
             options, "ColorFunctionScaling", evaluation, pop=True
         )
