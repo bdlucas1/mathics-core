@@ -215,66 +215,6 @@ class _Plot(Builtin, ABC):
             functions = [functions]
         return functions
 
-    def get_plotrange(self, plotrange, start, stop):
-        """Determine the plot range for each variable"""
-        x_range = y_range = None
-        if isinstance(plotrange, numbers.Real):
-            plotrange = ["System`Full", [-plotrange, plotrange]]
-        if plotrange == "System`Automatic":
-            plotrange = ["System`Full", "System`Automatic"]
-        elif plotrange == "System`All":
-            plotrange = ["System`All", "System`All"]
-        if isinstance(plotrange, list) and len(plotrange) == 2:
-            if isinstance(plotrange[0], numbers.Real) and isinstance(  # noqa
-                plotrange[1], numbers.Real
-            ):
-                x_range, y_range = "System`Full", plotrange
-            else:
-                x_range, y_range = plotrange
-            if x_range == "System`Full":
-                x_range = [start, stop]
-        return x_range, y_range
-
-    def process_function_and_options(
-        self, functions, x, start, stop, evaluation: Evaluation, options: dict
-    ) -> tuple:
-        """Process the arguments of a plot expression."""
-        if isinstance(functions, Symbol) and functions.name is not x.get_name():
-            rules = evaluation.definitions.get_ownvalues(functions.name)
-            for rule in rules:
-                functions = rule.apply(functions, evaluation, fully=True)
-
-        if functions.get_head() == SymbolList:
-            functions_param = self.get_functions_param(functions)
-            for index, f in enumerate(functions_param):
-                if isinstance(f, Symbol) and f.name is not x.get_name():
-                    rules = evaluation.definitions.get_ownvalues(f.name)
-                    for rule in rules:
-                        f = rule.apply(f, evaluation, fully=True)
-                functions_param[index] = f
-
-            functions = functions.flatten_with_respect_to_head(SymbolList)
-
-        expr_limits = ListExpression(x, start, stop)
-        # FIXME: arrange for self to have a .symbolname property or attribute
-        expr = Expression(
-            Symbol(self.get_name()), functions, expr_limits, *options_to_rules(options)
-        )
-        functions = self.get_functions_param(functions)
-        x_name = x.get_name()
-
-        py_start = start.round_to_float(evaluation)
-        py_stop = stop.round_to_float(evaluation)
-        if py_start is None or py_stop is None:
-            evaluation.message(self.get_name(), "plln", stop, expr)
-            return
-        if py_start >= py_stop:
-            evaluation.message(self.get_name(), "plld", expr_limits)
-            return
-
-        x_range, y_range = get_plot_range_option(options, evaluation, self.get_name())
-        return functions, x_name, py_start, py_stop, x_range, y_range, expr_limits, expr
-
 
 class DiscretePlot(_Plot):
     """
@@ -453,6 +393,69 @@ class DiscretePlot(_Plot):
             list_plot_type=ListPlotType.DiscretePlot,
             options=options,
         )
+
+    def get_plotrange(self, plotrange, start, stop):
+        """Determine the plot range for each variable"""
+        x_range = y_range = None
+        if isinstance(plotrange, numbers.Real):
+            plotrange = ["System`Full", [-plotrange, plotrange]]
+        if plotrange == "System`Automatic":
+            plotrange = ["System`Full", "System`Automatic"]
+        elif plotrange == "System`All":
+            plotrange = ["System`All", "System`All"]
+        if isinstance(plotrange, list) and len(plotrange) == 2:
+            if isinstance(plotrange[0], numbers.Real) and isinstance(  # noqa
+                plotrange[1], numbers.Real
+            ):
+                x_range, y_range = "System`Full", plotrange
+            else:
+                x_range, y_range = plotrange
+            if x_range == "System`Full":
+                x_range = [start, stop]
+        return x_range, y_range
+
+    def process_function_and_options(
+        self, functions, x, start, stop, evaluation: Evaluation, options: dict
+    ) -> tuple:
+        """Process the arguments of a plot expression."""
+        if isinstance(functions, Symbol) and functions.name is not x.get_name():
+            rules = evaluation.definitions.get_ownvalues(functions.name)
+            for rule in rules:
+                functions = rule.apply(functions, evaluation, fully=True)
+
+        if functions.get_head() == SymbolList:
+            functions_param = self.get_functions_param(functions)
+            for index, f in enumerate(functions_param):
+                if isinstance(f, Symbol) and f.name is not x.get_name():
+                    rules = evaluation.definitions.get_ownvalues(f.name)
+                    for rule in rules:
+                        f = rule.apply(f, evaluation, fully=True)
+                functions_param[index] = f
+
+            functions = functions.flatten_with_respect_to_head(SymbolList)
+
+        expr_limits = ListExpression(x, start, stop)
+        # FIXME: arrange for self to have a .symbolname property or attribute
+        expr = Expression(
+            Symbol(self.get_name()), functions, expr_limits, *options_to_rules(options)
+        )
+        functions = self.get_functions_param(functions)
+        x_name = x.get_name()
+
+        py_start = start.round_to_float(evaluation)
+        py_stop = stop.round_to_float(evaluation)
+        if py_start is None or py_stop is None:
+            evaluation.message(self.get_name(), "plln", stop, expr)
+            return
+        if py_start >= py_stop:
+            evaluation.message(self.get_name(), "plld", expr_limits)
+            return
+
+        x_range, y_range = get_plot_range_option(options, evaluation, self.get_name())
+        return functions, x_name, py_start, py_stop, x_range, y_range, expr_limits, expr
+
+
+
 
 
 class LogPlot(_Plot):
