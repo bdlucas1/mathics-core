@@ -8,6 +8,7 @@ from mathics.builtin.graphics import Graphics
 from mathics.builtin.options import options_to_rules
 from mathics.core.attributes import A_HOLD_ALL, A_PROTECTED, A_READ_PROTECTED
 from mathics.core.builtin import Builtin
+from mathics.core.convert.expression import to_mathics_list
 from mathics.core.convert.python import from_python
 from mathics.core.evaluation import Evaluation
 from mathics.core.expression import Expression
@@ -19,6 +20,7 @@ from mathics.core.systemsymbols import (
     SymbolFull,
     SymbolNone,
     SymbolSequence,
+    SymbolPlotRange,
 )
 from mathics.eval.drawing.plot import (
     ListPlotType,
@@ -84,31 +86,6 @@ class _Plot(Builtin, ABC):
     def eval(self, functions, ranges, evaluation: Evaluation, options: dict):
         """%(name)s[functions_, ranges__,  OptionsPattern[%(name)s]]"""
 
-        x, start, stop = ranges.elements
-        (
-            functions,
-            x_name,
-            py_start,
-            py_stop,
-            x_range,
-            y_range,
-            _,
-            _,
-        ) = self.process_function_and_options(
-            functions, x, start, stop, evaluation, options
-        )
-
-        print("functions", functions)
-        print("x_name", x_name)
-        print("py_start", py_start)
-        print("py_stop", py_stop)
-
-        # plotrange
-        print("x_range", x_range)
-        print("y_range", y_range)
-
-        ##################### TODO: LIFTED FROM plot_plot3d - DRY this #########################
-
         # parse options, bailing out if anything is wrong
         try:
             ranges = ranges.elements if ranges.head is SymbolSequence else [ranges]
@@ -116,34 +93,28 @@ class _Plot(Builtin, ABC):
         except ValueError:
             return None
 
-        """
+        # functions
+        plot_options.functions = self.get_functions_param(functions)
 
-        # TODO: consult many_functions variable set by subclass and error
-        # if many_functions is False but multiple are supplied
-        if functions.has_form("List", None):
-            plot_options.functions = functions.elements
-        else:
-            plot_options.functions = [functions]
 
-        # subclass must set eval_function and graphics_class
-        eval_function = plot.get_plot_eval_function(self.__class__)
-        graphics = eval_function(plot_options, evaluation)
-        if not graphics:
-            return
+        ##################### TODO: LIFTED FROM plot_plot3d - DRY this #########################
 
         # Expand PlotRange option using the {x,xmin,xmax} etc. range specifications
         # Pythonize it, so Symbol becomes str, numeric becomes int or float
         plot_range = self.get_option(options, str(SymbolPlotRange), evaluation)
-        plot_range = plot_range.to_python()
-        dim = 3 if self.graphics_class is Graphics3D else 2
+        plot_range = eval_N(plot_range, evaluation).to_python()  # TODO: add this to plot3d and add a test!
+        #dim = 3 if self.graphics_class is Graphics3D else 2 # TODO: careful!
+        dim = 2
         if isinstance(plot_range, str):
             # PlotRange -> Automatic becomes PlotRange -> {Automatic, ...}
-            plot_range = [str(SymbolAutomatic)] * dim
+            plot_range = [plot_range] * dim
         if isinstance(plot_range, (int, float)):
             # PlotRange -> s becomes PlotRange -> {Automatic,...,{-s,s}}
-            pr = plot_range
+            pr = float(plot_range)
             plot_range = [str(SymbolAutomatic)] * dim
             plot_range[-1] = [-pr, pr]
+            if isinstance(self, ParametricPlot):
+                plot_range[0] = [-pr, pr]
         elif isinstance(plot_range, (list, tuple)) and isinstance(
             plot_range[0], (int, float)
         ):
@@ -152,19 +123,11 @@ class _Plot(Builtin, ABC):
             plot_range = [str(SymbolAutomatic)] * dim
             plot_range[-1] = pr
 
-        # now we have a list of length dim
-        # handle Automatic ~ {xmin,xmax} etc.
-        for i, (pr, r) in enumerate(zip(plot_range, plot_options.ranges)):
-            # TODO: this treats Automatic and Full as the same, which isn't quite right
-            if isinstance(pr, str) and not isinstance(r[1], complex):
-                plot_range[i] = r[1:]  # extract {xmin,xmax} from {x,xmin,xmax}
-
         # unpythonize and update PlotRange option
-        options[str(SymbolPlotRange)] = to_mathics_list(*plot_range)
-        """
+        # TODO: let Plot do this, and also update Plot3D to do same
+        #options[str(SymbolPlotRange)] = to_mathics_list(*plot_range)
 
         ############################################
-
 
 
         # Mesh Option
@@ -184,9 +147,6 @@ class _Plot(Builtin, ABC):
         if not (isinstance(plotpoints, int) and plotpoints >= 2):
             evaluation.message(self.get_name(), "ppts", plotpoints)
             return
-
-        # MaxRecursion Option
-        maxrecursion = plot_options.max_depth
 
         # Exclusions Option
         # TODO: Make exclusions option work properly with ParametricPlot
@@ -220,6 +180,13 @@ class _Plot(Builtin, ABC):
 
         # exclusions is now either 'None' or a list of reals and 'Automatic'
         assert exclusions == "System`None" or isinstance(exclusions, list)
+
+        maxrecursion = plot_options.max_depth
+        functions = plot_options.functions
+        x_name = str(plot_options.ranges[0][0])
+        py_start, py_stop = plot_options.ranges[0][1:3]
+        x_range = plot_range[0]
+        y_range = plot_range[1]
 
         use_log_scale = self.use_log_scale
         return eval_Plot(
@@ -605,24 +572,6 @@ class ParametricPlot(_Plot):
             functions = list(functions.elements)
         return functions
 
-    def get_plotrange(self, plotrange, start, stop):
-        x_range = y_range = None
-        if isinstance(plotrange, numbers.Real):
-            plotrange = [[-plotrange, plotrange], [-plotrange, plotrange]]
-        if plotrange == "System`Automatic":
-            plotrange = ["System`Automatic", "System`Automatic"]
-        elif plotrange == "System`All":
-            plotrange = ["System`All", "System`All"]
-        if isinstance(plotrange, list) and len(plotrange) == 2:
-            if isinstance(plotrange[0], numbers.Real) and isinstance(  # noqa
-                plotrange[1], numbers.Real
-            ):
-                x_range = [-plotrange[0], plotrange[1]]
-                y_range = [-plotrange[1], plotrange[1]]
-            else:
-                x_range, y_range = plotrange
-        return x_range, y_range
-
     @lru_cache()
     def _apply_fn(self, fn: Callable, x_value):
         value = fn(x_value)
@@ -675,31 +624,6 @@ class PolarPlot(_Plot):
         }
     )
     summary_text = "draw a polar plot"
-
-    def get_functions_param(self, functions):
-        if functions.has_form("List", None):
-            functions = list(functions.elements)
-        else:
-            functions = [functions]
-        return functions
-
-    def get_plotrange(self, plotrange, start, stop):
-        x_range = y_range = None
-        if isinstance(plotrange, numbers.Real):
-            plotrange = [[-plotrange, plotrange], [-plotrange, plotrange]]
-        if plotrange == "System`Automatic":
-            plotrange = ["System`Automatic", "System`Automatic"]
-        elif plotrange == "System`All":
-            plotrange = ["System`All", "System`All"]
-        if isinstance(plotrange, list) and len(plotrange) == 2:
-            if isinstance(plotrange[0], numbers.Real) and isinstance(  # noqa
-                plotrange[1], numbers.Real
-            ):
-                x_range = [-plotrange[0], plotrange[1]]
-                y_range = [-plotrange[1], plotrange[1]]
-            else:
-                x_range, y_range = plotrange
-        return x_range, y_range
 
     @lru_cache()
     def _apply_fn(self, fn: Callable, x_value):
