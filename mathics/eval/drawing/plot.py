@@ -26,6 +26,7 @@ from mathics.core.list import ListExpression
 from mathics.core.symbols import SymbolN, SymbolTrue
 from mathics.core.systemsymbols import (
     SymbolAll,
+    SymbolAutomatic,
     SymbolFull,
     SymbolGraphics,
     SymbolHue,
@@ -583,9 +584,9 @@ def eval_Plot(
                     return line, xi + 1, True
             return line, xi + 1, False
 
-        if exclusions != "System`None":
+        if isinstance(exclusions, list):
             for excl in exclusions:
-                if excl != "System`Automatic":
+                if excl != SymbolAutomatic:
                     l, xi, split_required = find_excl(excl)
                     if split_required:
                         xvalues.insert(l + 1, xvalues[l][xi:])
@@ -645,7 +646,7 @@ def eval_Plot(
                         i += incr
                     i += 1
 
-        if exclusions == "System`None":  # Join all the Lines
+        if exclusions == SymbolNone:  # Join all the Lines
             points = [[(xx, yy) for line in points for xx, yy in line]]
 
         graphics.append(Expression(SymbolHue, Real(hue), RealPoint6, RealPoint6))

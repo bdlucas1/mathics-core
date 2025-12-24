@@ -454,6 +454,23 @@ class PlotOptions:
                 error("invcontour", contours)
             self.contours = c
 
+        # Supports None, Automatic, or list of numbers
+        # TODO Turn expressions into points E.g. Sin[x] == 0 becomes 0, 2 Pi...
+        # (returns Symbol)
+        exclusions_option = builtin.get_option(options, "Exclusions", evaluation)
+        print("xxx exclusions_option", exclusions_option)
+        exclusions = eval_N(exclusions_option, evaluation).to_python(preserve_symbols=True)
+        if exclusions in (SymbolNone, SymbolAutomatic):
+            pass
+        elif isinstance(exclusions, (int,float)):
+            exclusions = [exclusions]
+        elif isinstance(exclusions, (list,tuple)):
+            if not all(isinstance(e, (int,float)) for e in exclusions):
+                error("invexcl", exclusions_option)
+        else:
+            error("invexcl", exclusions_option)                
+        self.exclusions = exclusions
+
         # Mesh option (returns Symbol)
         mesh = builtin.get_option(options, "Mesh", evaluation)
         if mesh not in (SymbolNone, SymbolFull, SymbolAll):
@@ -461,7 +478,7 @@ class PlotOptions:
             mesh = SymbolFull
         self.mesh = mesh
 
-        # PlotPoints option (returns str, maybe)
+        # PlotPoints option (returns Symbol)
         plot_points_option = builtin.get_option(options, "PlotPoints", evaluation)
         pp = plot_points_option.to_python(preserve_symbols=True)
         npp = len(self.ranges)

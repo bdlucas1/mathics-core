@@ -59,6 +59,7 @@ class _Plot3D(Builtin):
     options3d = Graphics3D.options | {
         "Axes": "True",
         "AspectRatio": "1",
+        "Exclusions": "Automatic",
         "Mesh": "Full",
         "PlotPoints": "None",
         "BoxRatios": "{1, 1, 0.4}",
@@ -73,6 +74,7 @@ class _Plot3D(Builtin):
         "Frame": "True",
         "ColorFunction": "Automatic",
         "ColorFunctionScaling": "True",
+        "Exclusions": "Automatic",
         "PlotPoints": "None",
         "MaxRecursion": "0",
         # 'MaxRecursion': '2',  # FIXME causes bugs in svg output see #303

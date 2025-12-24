@@ -100,39 +100,6 @@ class _Plot(Builtin, ABC):
             default_plot_points = 57
             plot_options.plot_points = default_plot_points
 
-        # Exclusions Option
-        # TODO: Make exclusions option work properly with ParametricPlot
-        def check_exclusion(excl):
-            if isinstance(excl, list):
-                return all(check_exclusion(e) for e in excl)
-            if excl == "System`Automatic":
-                return True
-            if not isinstance(excl, numbers.Real):
-                return False
-            return True
-
-        exclusions_option = self.get_option(options, "Exclusions", evaluation)
-        # TODO Turn expressions into points E.g. Sin[x] == 0 becomes 0, 2 Pi...
-
-        if exclusions_option in (SymbolNone, (SymbolNone,)):
-            exclusions = "System`None"
-        else:
-            exclusions = eval_N(exclusions_option, evaluation).to_python()
-            if not isinstance(exclusions, list):
-                exclusions = [exclusions]
-
-                if isinstance(exclusions, list) and all(  # noqa
-                    check_exclusion(excl) for excl in exclusions
-                ):
-                    pass
-
-                else:
-                    evaluation.message(self.get_name(), "invexcl", exclusions_option)
-                    exclusions = ["System`Automatic"]
-
-        # exclusions is now either 'None' or a list of reals and 'Automatic'
-        assert exclusions == "System`None" or isinstance(exclusions, list)
-
         maxrecursion = plot_options.max_depth
         functions = plot_options.functions
         x_name = str(plot_options.ranges[0][0])
@@ -141,6 +108,7 @@ class _Plot(Builtin, ABC):
         y_range = plot_options.plot_range[1]
         mesh = plot_options.mesh
         plot_points = plot_options.plot_points
+        exclusions = plot_options.exclusions
 
         use_log_scale = self.use_log_scale
         return eval_Plot(
