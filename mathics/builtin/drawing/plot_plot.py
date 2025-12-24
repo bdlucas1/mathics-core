@@ -112,6 +112,12 @@ class _Plot(Builtin, ABC):
         return functions
 
 
+# TODO: this still remains to be cleaned up to use PlotOptions
+# - inherits from _Plot but calls eval_ListPlot - can that be untangled
+# - unlike the others, the range expression has a fourth member, step
+#   so PlotOptions needs a little generalization, maybe
+
+
 class DiscretePlot(_Plot):
     """
     <url>:WMA link: https://reference.wolfram.com/language/ref/DiscretePlot.html</url>
