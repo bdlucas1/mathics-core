@@ -411,7 +411,7 @@ class PlotOptions:
     # TODO: more precise types
     ranges: list
     mesh: str
-    plotpoints: list
+    plot_points: list
     maxdepth: int
 
     def __init__(self, builtin, range_exprs, options, dim, evaluation):
@@ -462,28 +462,26 @@ class PlotOptions:
         self.mesh = mesh
 
         # PlotPoints option (returns str, maybe)
-        plotpoints_option = builtin.get_option(options, "PlotPoints", evaluation)
-        plotpoints = plotpoints_option.to_python()
-
-        def check_plotpoints(steps):
-            if isinstance(steps, int) and steps > 0:
-                return True
-            return False
-
-        default_plotpoints = (200, 200) if use_vectorized_plot else (7, 7)
-        if plotpoints == "System`None":
-            plotpoints = default_plotpoints
-        elif check_plotpoints(plotpoints):
-            plotpoints = (plotpoints, plotpoints)
-        if not (
-            isinstance(plotpoints, (list, tuple))
-            and len(plotpoints) == 2
-            and check_plotpoints(plotpoints[0])
-            and check_plotpoints(plotpoints[1])
-        ):
-            evaluation.message(builtin.get_name(), "invpltpts", plotpoints)
-            plotpoints = default_plotpoints
-        self.plotpoints = plotpoints
+        plot_points_option = builtin.get_option(options, "PlotPoints", evaluation)
+        pp = plot_points_option.to_python(preserve_symbols=True)
+        npp = len(self.ranges)
+        if builtin.get_name() in ("System`ComplexPlot3D", "System`ComplexPlot"):
+            npp = 2
+        if pp == SymbolNone:
+            pp = None
+        else:
+            if not isinstance(pp, (tuple,list)):
+                pp = (pp,) * npp
+            if not (
+                isinstance(pp, (list, tuple))
+                and len(pp) ==  npp
+                and all(isinstance(p, int) and p >= 2 for p in pp)
+            ):
+                error("invpltpts", plot_points_option)
+                pp = None
+            elif npp == 1:
+                pp = pp[0]
+        self.plot_points = pp
 
         # MaxRecursion Option
         maxrec_option = builtin.get_option(options, "MaxRecursion", evaluation)

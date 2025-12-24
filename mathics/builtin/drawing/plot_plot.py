@@ -55,7 +55,7 @@ class _Plot(Builtin, ABC):
             "Value of option PlotRange -> `1` is not All, Automatic or "
             "an appropriate list of range specifications."
         ),
-        "ppts": "Value of option PlotPoints -> `1` is not an integer >= 2.",
+        "invpltpts": "Value of option PlotPoints -> `1` is not an integer >= 2.",
         "invexcl": (
             "Value of Exclusions -> `1` is not None, Automatic or an "
             "appropriate list of constraints."
@@ -95,15 +95,10 @@ class _Plot(Builtin, ABC):
         # functions
         plot_options.functions = self.get_functions_param(functions)
 
-        # PlotPoints Option
-        plotpoints_option = self.get_option(options, "PlotPoints", evaluation)
-        if plotpoints_option is SymbolNone:
-            plotpoints = 57
-        else:
-            plotpoints = plotpoints_option.to_python()
-        if not (isinstance(plotpoints, int) and plotpoints >= 2):
-            evaluation.message(self.get_name(), "ppts", plotpoints)
-            return
+        # supply default plot_points if needed
+        if plot_options.plot_points is None:
+            default_plot_points = 57
+            plot_options.plot_points = default_plot_points
 
         # Exclusions Option
         # TODO: Make exclusions option work properly with ParametricPlot
@@ -145,6 +140,7 @@ class _Plot(Builtin, ABC):
         x_range = plot_options.plot_range[0]
         y_range = plot_options.plot_range[1]
         mesh = plot_options.mesh
+        plot_points = plot_options.plot_points
 
         use_log_scale = self.use_log_scale
         return eval_Plot(
@@ -155,7 +151,7 @@ class _Plot(Builtin, ABC):
             py_stop,
             x_range,
             y_range,
-            plotpoints,
+            plot_points,
             mesh,
             self.expect_list,
             exclusions,

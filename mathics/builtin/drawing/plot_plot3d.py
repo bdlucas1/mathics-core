@@ -104,6 +104,11 @@ class _Plot3D(Builtin):
         else:
             plot_options.functions = [functions]
 
+        # supply default value
+        if plot_options.plot_points is None:
+            default_plot_points = (200, 200) if plot.use_vectorized_plot else (7, 7)
+            plot_options.plot_points = default_plot_points
+
         # subclass must set eval_function and graphics_class
         eval_function = plot.get_plot_eval_function(self.__class__)
         graphics = eval_function(plot_options, evaluation)
