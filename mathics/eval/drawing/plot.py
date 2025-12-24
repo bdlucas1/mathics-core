@@ -496,7 +496,7 @@ def eval_Plot(plot_options, options: dict, evaluation: Evaluation) -> Expression
     start: int = plot_options.ranges[0][1]
     stop: int = plot_options.ranges[0][2]
     x_range: list = plot_options.plot_range[0]
-    y_range: list =  plot_options.plot_range[1]
+    y_range: list = plot_options.plot_range[1]
     num_plot_points: int = plot_options.plot_points
     mesh = plot_options.mesh
     expect_list: bool = plot_options.expect_list

@@ -39,7 +39,6 @@ from mathics.eval.drawing.colors import COLOR_PALETTES, get_color_palette
 from mathics.eval.drawing.plot import get_plot_range
 from mathics.eval.nevaluator import eval_N
 
-
 # The vectorized plot function generates GraphicsComplex using NumericArray,
 # which no consumer will currently understand. So lets make it opt-in for now.
 # If it remains opt-in we'll probably want some combination of env variables,
@@ -415,7 +414,6 @@ class PlotOptions:
     maxdepth: int
 
     def __init__(self, builtin, range_exprs, options, dim, evaluation):
-
         def error(*args, **kwargs):
             evaluation.message(builtin.get_name(), *args, **kwargs)
             raise ValueError()
@@ -458,16 +456,18 @@ class PlotOptions:
         # TODO Turn expressions into points E.g. Sin[x] == 0 becomes 0, 2 Pi...
         # (returns Symbol)
         exclusions_option = builtin.get_option(options, "Exclusions", evaluation)
-        exclusions = eval_N(exclusions_option, evaluation).to_python(preserve_symbols=True)
+        exclusions = eval_N(exclusions_option, evaluation).to_python(
+            preserve_symbols=True
+        )
         if exclusions in (SymbolNone, SymbolAutomatic):
             pass
-        elif isinstance(exclusions, (int,float)):
+        elif isinstance(exclusions, (int, float)):
             exclusions = [exclusions]
-        elif isinstance(exclusions, (list,tuple)):
-            if not all(isinstance(e, (int,float)) for e in exclusions):
+        elif isinstance(exclusions, (list, tuple)):
+            if not all(isinstance(e, (int, float)) for e in exclusions):
                 error("invexcl", exclusions_option)
         else:
-            error("invexcl", exclusions_option)                
+            error("invexcl", exclusions_option)
         self.exclusions = exclusions
 
         # Mesh option (returns Symbol)
@@ -486,11 +486,11 @@ class PlotOptions:
         if pp == SymbolNone:
             pp = None
         else:
-            if not isinstance(pp, (tuple,list)):
+            if not isinstance(pp, (tuple, list)):
                 pp = (pp,) * npp
             if not (
                 isinstance(pp, (list, tuple))
-                and len(pp) ==  npp
+                and len(pp) == npp
                 and all(isinstance(p, int) and p >= 2 for p in pp)
             ):
                 error("invpltpts", plot_points_option)
@@ -519,7 +519,6 @@ class PlotOptions:
             evaluation.message(builtin.get_name(), "invmaxrec", max_depth, 15)
         self.max_depth = max_depth
 
-
         #
         # PlotRange option
         # Expand PlotRange option using the {x,xmin,xmax} etc. range specifications
@@ -527,7 +526,9 @@ class PlotOptions:
         # (returns  str)
         #
         plot_range = builtin.get_option(options, str(SymbolPlotRange), evaluation)
-        plot_range = eval_N(plot_range, evaluation).to_python()  # TODO: add this to plot3d and add a test!
+        plot_range = eval_N(
+            plot_range, evaluation
+        ).to_python()  # TODO: add this to plot3d and add a test!
         if isinstance(plot_range, str):
             # PlotRange -> Automatic becomes PlotRange -> {Automatic, ...}
             plot_range = [plot_range] * dim

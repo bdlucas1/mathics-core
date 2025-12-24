@@ -19,8 +19,8 @@ from mathics.core.systemsymbols import (
     SymbolAutomatic,
     SymbolFull,
     SymbolNone,
-    SymbolSequence,
     SymbolPlotRange,
+    SymbolSequence,
 )
 from mathics.eval.drawing.plot import (
     ListPlotType,
@@ -349,9 +349,6 @@ class DiscretePlot(_Plot):
 
         x_range, y_range = get_plot_range_option(options, evaluation, self.get_name())
         return functions, x_name, py_start, py_stop, x_range, y_range, expr_limits, expr
-
-
-
 
 
 class LogPlot(_Plot):

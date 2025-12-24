@@ -21,8 +21,6 @@ from . import plot
 from .plot import sort_order  # noqa
 
 
-
-
 class _Plot3D(Builtin):
     """Common base class for Plot3D, DensityPlot, ComplexPlot, ComplexPlot3D"""
 
@@ -123,7 +121,8 @@ class _Plot3D(Builtin):
         for i, (pr, r) in enumerate(zip(plot_options.plot_range, plot_options.ranges)):
             # TODO: this treats Automatic and Full as the same, which isn't quite right
             if isinstance(pr, str) and not isinstance(r[1], complex):
-                plot_options.plot_range[i] = r[1:]  # extract {xmin,xmax} from {x,xmin,xmax}
+                # extract {xmin,xmax} from {x,xmin,xmax}
+                plot_options.plot_range[i] = r[1:]
 
         # unpythonize and update PlotRange option
         options[str(SymbolPlotRange)] = to_mathics_list(*plot_options.plot_range)
