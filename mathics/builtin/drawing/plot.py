@@ -458,7 +458,6 @@ class PlotOptions:
         # TODO Turn expressions into points E.g. Sin[x] == 0 becomes 0, 2 Pi...
         # (returns Symbol)
         exclusions_option = builtin.get_option(options, "Exclusions", evaluation)
-        print("xxx exclusions_option", exclusions_option)
         exclusions = eval_N(exclusions_option, evaluation).to_python(preserve_symbols=True)
         if exclusions in (SymbolNone, SymbolAutomatic):
             pass

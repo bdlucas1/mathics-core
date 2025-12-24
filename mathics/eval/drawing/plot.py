@@ -168,12 +168,12 @@ def get_filling_option(options, evaluation):
     return None
 
 
-def compile_quiet_function(expr, arg_names, evaluation, list_is_expected: bool):
+def compile_quiet_function(expr, arg_names, evaluation, expect_list: bool):
     """
     Given an expression return a quiet callable version.
     Compiles the expression where possible.
     """
-    if has_compile and not list_is_expected:
+    if has_compile and not expect_list:
         try:
             cfunc = _compile(
                 expr, [CompileArg(arg_name, real_type) for arg_name in arg_names]
@@ -200,7 +200,7 @@ def compile_quiet_function(expr, arg_names, evaluation, list_is_expected: bool):
         vars = {arg_name: Real(arg) for arg_name, arg in zip(arg_names, args)}
         value = dynamic_scoping(expr.evaluate, vars, evaluation)
         evaluation.quiet_all = old_quiet_all
-        if list_is_expected:
+        if expect_list:
             if value.has_form("List", None):
                 value = [extract_pyreal(item) for item in value.elements]
                 if any(item is None for item in value):
@@ -470,23 +470,7 @@ def eval_ListPlot(
     )
 
 
-def eval_Plot(
-    functions: List[Expression],
-    apply_fn: Callable,
-    x_name: str,
-    start: int,
-    stop: int,
-    x_range: list,
-    y_range,
-    num_plot_points: int,
-    mesh,
-    list_is_expected: bool,
-    exclusions: list,
-    max_recursion: int,
-    use_log_scale: bool,
-    options: dict,
-    evaluation: Evaluation,
-) -> Expression:
+def eval_Plot(plot_options, options: dict, evaluation: Evaluation) -> Expression:
     """
     Evaluation part of Plot[]
 
@@ -500,11 +484,26 @@ def eval_Plot(
     y_range: y-axis range of the form Automatic, All, or [min, max]
     y_range: either Automatic, All, or of the form [min, max]
     num_plot_points: number of points to plot
-    list_is_expected: list is expected in evaluation (?)
+    expect_list: list is expected in evaluation (?)
     max_recursion: maximum number of levels of recursion in evaluation (?)
     options: Plot options
     evaluation: Expression evaluation object typically needed in evaluation
     """
+
+    functions: List[Expression] = plot_options.functions
+    apply_fn: Callable = plot_options.apply_function
+    x_name: str = str(plot_options.ranges[0][0])
+    start: int = plot_options.ranges[0][1]
+    stop: int = plot_options.ranges[0][2]
+    x_range: list = plot_options.plot_range[0]
+    y_range: list =  plot_options.plot_range[1]
+    num_plot_points: int = plot_options.plot_points
+    mesh = plot_options.mesh
+    expect_list: bool = plot_options.expect_list
+    exclusions: list = plot_options.exclusions
+    max_recursion: int = plot_options.max_depth
+    use_log_scale: bool = plot_options.use_log_scale
+
     # constants to generate colors
     hue = 0.67
     hue_pos = 0.236068
@@ -539,7 +538,7 @@ def eval_Plot(
             # Scale point values down by Log 10.
             # Tick mark values will be adjusted to be 10^n in GraphicsBox.
             f = Expression(SymbolLog10, f)
-        compiled_fn = compile_quiet_function(f, [x_name], evaluation, list_is_expected)
+        compiled_fn = compile_quiet_function(f, [x_name], evaluation, expect_list)
         for i in range(num_plot_points):
             x_value = start + i * d
             point = apply_fn(compiled_fn, x_value)

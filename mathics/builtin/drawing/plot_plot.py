@@ -77,7 +77,7 @@ class _Plot(Builtin, ABC):
     )
 
     @lru_cache()
-    def _apply_fn(self, f: Callable, x_value):
+    def apply_function(self, f: Callable, x_value):
         value = f(x_value)
         if value is not None:
             return (x_value, value)
@@ -92,42 +92,16 @@ class _Plot(Builtin, ABC):
         except ValueError:
             return None
 
-        # functions
+        # additonal options specific to this class
         plot_options.functions = self.get_functions_param(functions)
-
-        # supply default plot_points if needed
+        plot_options.apply_function = self.apply_function
+        plot_options.use_log_scale = self.use_log_scale
+        plot_options.expect_list = self.expect_list
         if plot_options.plot_points is None:
             default_plot_points = 57
             plot_options.plot_points = default_plot_points
 
-        maxrecursion = plot_options.max_depth
-        functions = plot_options.functions
-        x_name = str(plot_options.ranges[0][0])
-        py_start, py_stop = plot_options.ranges[0][1:3]
-        x_range = plot_options.plot_range[0]
-        y_range = plot_options.plot_range[1]
-        mesh = plot_options.mesh
-        plot_points = plot_options.plot_points
-        exclusions = plot_options.exclusions
-
-        use_log_scale = self.use_log_scale
-        return eval_Plot(
-            functions,
-            self._apply_fn,
-            x_name,
-            py_start,
-            py_stop,
-            x_range,
-            y_range,
-            plot_points,
-            mesh,
-            self.expect_list,
-            exclusions,
-            maxrecursion,
-            use_log_scale,
-            options,
-            evaluation,
-        )
+        return eval_Plot(plot_options, options, evaluation)
 
     def get_functions_param(self, functions):
         """Get the numbers of parameters in a function"""
@@ -447,7 +421,7 @@ class Plot(_Plot):
     summary_text = "plot curves of one or more functions"
 
     @lru_cache()
-    def _apply_fn(self, f: Callable, x_value):
+    def apply_function(self, f: Callable, x_value):
         value = f(x_value)
         if value is not None:
             return (x_value, value)
@@ -498,7 +472,7 @@ class ParametricPlot(_Plot):
         return functions
 
     @lru_cache()
-    def _apply_fn(self, fn: Callable, x_value):
+    def apply_function(self, fn: Callable, x_value):
         value = fn(x_value)
         if value is not None and len(value) == 2:
             return value
@@ -551,7 +525,7 @@ class PolarPlot(_Plot):
     summary_text = "draw a polar plot"
 
     @lru_cache()
-    def _apply_fn(self, fn: Callable, x_value):
+    def apply_function(self, fn: Callable, x_value):
         value = fn(x_value)
         if value is not None:
             return (value * cos(x_value), value * sin(x_value))
